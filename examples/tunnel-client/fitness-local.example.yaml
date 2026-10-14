@@ -1,0 +1,22 @@
+# Пример профиля tunnel-client для FITNESS Tracker. Все значения в угловых скобках — заглушки.
+# Скопируйте файл в %APPDATA%\tunnel-client\fitness-local.yaml и заполните своими значениями
+# из настроек вашего приложения/коннектора ChatGPT. Не добавляйте настоящий профиль в репозиторий.
+config_version: 1
+control_plane:
+  base_url: "<адрес control plane из инструкции tunnel-client>"
+  tunnel_id: "<ваш tunnel_id>"
+  # Ключ не пишется в файл: tunnel-client читает его из переменной окружения пользователя.
+  api_key: "env:CONTROL_PLANE_API_KEY"
+health:
+  # Локальный адрес проверки состояния; launcher читает его отсюда.
+  listen_addr: "127.0.0.1:8080"
+admin_ui:
+  open_browser: false
+log:
+  level: info
+  format: json
+mcp:
+  commands:
+    - channel: main
+      # Абсолютный путь к server.py вашей копии проекта (прямые слэши подходят и в Windows).
+      command: "python C:/path/to/FITNESS-Tracker/server.py"

@@ -1,0 +1,57 @@
+# Личные данные: база, резервные копии, фото, выгрузки, журналы, состояние запуска
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+
+# Реальные выгрузки Health Connect (синтетический пример examples/health-sample.json под это правило не попадает)
+fitness-health-*.json
+health_inbox/
+health_processed/
+health_failed/
+health_syncthing/
+
+# Локальные настройки (в репозитории только примеры *.example.*)
+launcher.json
+fitness-local.yaml
+
+# Фото
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.webp
+
+# Временные файлы
+*.tmp
+*.bak
+*~
+
+# Секреты
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+secrets*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Редакторы и ОС
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# Сборка EXE (scripts/build_exe.ps1)
+build/
+dist/

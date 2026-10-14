@@ -1,0 +1,153 @@
+{
+  "format": "fitness-health-export",
+  "format_version": 1,
+  "phone_id": "example-phone",
+  "sequence": 1,
+  "exported_at": "2026-10-10T17:20:00Z",
+  "sources": [
+    {
+      "id": "s1",
+      "package": "com.example.watchapp",
+      "device": {
+        "manufacturer": null,
+        "model": null,
+        "type": null
+      }
+    }
+  ],
+  "steps": [
+    {
+      "hc_id": "step-1",
+      "source": "s1",
+      "start": "2026-10-10T00:00:00Z",
+      "end": "2026-10-10T00:10:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "count": 511,
+      "last_modified": "2026-10-10T17:00:00Z"
+    },
+    {
+      "hc_id": "step-2",
+      "source": "s1",
+      "start": "2026-10-10T00:10:00Z",
+      "end": "2026-10-10T00:20:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "count": 876,
+      "last_modified": "2026-10-10T17:00:00Z"
+    },
+    {
+      "hc_id": "step-3",
+      "source": "s1",
+      "start": "2026-10-10T16:30:00Z",
+      "end": "2026-10-10T16:40:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "count": 6,
+      "last_modified": "2026-10-10T17:00:00Z"
+    }
+  ],
+  "heart_rate": [
+    {
+      "hc_id": "hr-1",
+      "source": "s1",
+      "start": "2026-10-10T19:10:00Z",
+      "end": "2026-10-10T19:11:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "samples": [
+        {
+          "time": "2026-10-10T19:10:00Z",
+          "bpm": 66
+        }
+      ],
+      "last_modified": "2026-10-10T17:00:00Z"
+    },
+    {
+      "hc_id": "hr-2",
+      "source": "s1",
+      "start": "2026-10-10T19:05:00Z",
+      "end": "2026-10-10T19:06:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "samples": [
+        {
+          "time": "2026-10-10T19:05:00Z",
+          "bpm": 69
+        }
+      ],
+      "last_modified": "2026-10-10T17:00:00Z"
+    },
+    {
+      "hc_id": "hr-3",
+      "source": "s1",
+      "start": "2026-10-10T19:00:00Z",
+      "end": "2026-10-10T19:01:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "samples": [
+        {
+          "time": "2026-10-10T19:00:00Z",
+          "bpm": 73
+        }
+      ],
+      "last_modified": "2026-10-10T17:00:00Z"
+    }
+  ],
+  "sleep": [
+    {
+      "hc_id": "sleep-1",
+      "source": "s1",
+      "start": "2026-10-10T07:05:00Z",
+      "end": "2026-10-10T15:20:00Z",
+      "start_offset_min": 180,
+      "end_offset_min": 180,
+      "title": null,
+      "notes": null,
+      "stages": [
+        {
+          "stage": "light",
+          "start": "2026-10-10T07:05:00Z",
+          "end": "2026-10-10T07:30:00Z"
+        },
+        {
+          "stage": "deep",
+          "start": "2026-10-10T07:30:00Z",
+          "end": "2026-10-10T07:50:00Z"
+        },
+        {
+          "stage": "light",
+          "start": "2026-10-10T07:50:00Z",
+          "end": "2026-10-10T08:10:00Z"
+        },
+        {
+          "stage": "awake",
+          "start": "2026-10-10T08:10:00Z",
+          "end": "2026-10-10T08:12:00Z"
+        },
+        {
+          "stage": "light",
+          "start": "2026-10-10T08:12:00Z",
+          "end": "2026-10-10T08:40:00Z"
+        },
+        {
+          "stage": "awake",
+          "start": "2026-10-10T08:40:00Z",
+          "end": "2026-10-10T08:43:00Z"
+        },
+        {
+          "stage": "light",
+          "start": "2026-10-10T08:43:00Z",
+          "end": "2026-10-10T09:15:00Z"
+        },
+        {
+          "stage": "awake",
+          "start": "2026-10-10T09:15:00Z",
+          "end": "2026-10-10T09:20:00Z"
+        }
+      ],
+      "last_modified": "2026-10-10T17:00:00Z"
+    }
+  ],
+  "deleted": []
+}

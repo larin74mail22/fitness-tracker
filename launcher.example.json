@@ -1,0 +1,9 @@
+{
+  "tunnel_client": "",
+  "tunnel_profile": "",
+  "tunnel_enabled": true,
+  "import_enabled": true,
+  "import_interval_sec": 30,
+  "dashboard_port": 8765,
+  "mcp_check_minutes": 60
+}
