@@ -55,6 +55,7 @@ Browser ◀── dashboard.py (127.0.0.1:8765, read-only except photos) ◀─�
   and an automatic backup. Full tool descriptions: `fitness/tools.py`; overview: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **Web dashboard** (`dashboard.py`, `127.0.0.1` only): charts and history, Health, Sync and Photos pages.
   The database is opened read-only; the Photos page is the only one that writes (upload and photo trash).
+  The interface is available in English (default) and Russian: use the `EN | RU` switch in the header.
 - **Health Connect import**: manual (`import_health.py`), inbox folder (`health_inbox.py`, once or `--watch`),
   or from ChatGPT (`import_health_export`).
 - **Windows launcher** (`tracker.pyw`): tray icon, supervised tunnel-client, automatic inbox import, dashboard
@@ -112,6 +113,12 @@ The server reads MCP messages from stdin and exits when stdin is closed.
 python dashboard.py            # then open http://127.0.0.1:8765/
 python dashboard.py --port 8800
 ```
+
+**Interface language.** The dashboard and the tray menu start in English. The `EN | RU` switch in the dashboard
+header changes the language immediately, without a restart. The choice is stored as `"language": "en"` or `"ru"`
+in `data/launcher.json` (never in the fitness database) and is kept after page reloads and restarts. Only the
+interface is translated: MCP tool names, database fields and your saved records stay as they are, and error texts
+from the core (which ChatGPT relays) remain in Russian.
 
 **Health Connect import.** The importer works only with an existing database: it neither creates the database nor
 changes its schema. Make at least one record through MCP first; upgrade an older database with

@@ -15,7 +15,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .. import db
+from .. import db, i18n
 
 CONFIG_FILE = "launcher.json"
 LOG_DIR, RUN_DIR = "logs", "run"
@@ -33,6 +33,8 @@ DEFAULTS = {
     "dashboard_port": 8765,
     # Как часто проверять, что server.py отвечает по MCP (минуты; 0 — только при запуске и по команде).
     "mcp_check_minutes": 60,
+    # Язык панели и значка в трее: "en" или "ru". Меняется переключателем EN | RU в панели.
+    "language": "en",
 }
 
 
@@ -85,6 +87,38 @@ def load(db_path=None, *, write_defaults=True):
         except OSError:
             pass
     return settings
+
+
+def read_language(db_path=None):
+    """Язык интерфейса из data\launcher.json. Нет файла, ключа или файл повреждён — язык по умолчанию (en).
+    Ничего не создаёт и не меняет."""
+    try:
+        stored = json.loads(paths(db_path)["config"].read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return i18n.DEFAULT_LANGUAGE
+    return i18n.normalize(stored.get("language")) if isinstance(stored, dict) else i18n.DEFAULT_LANGUAGE
+
+
+def save_language(lang, db_path=None):
+    """Записать язык в data\launcher.json, сохранив остальные настройки. Файл заменяется целиком через
+    временный файл, чтобы при сбое не остался обрезанным. Повреждённый файл не перезаписывается: ValueError."""
+    if lang not in i18n.LANGUAGES:
+        raise ValueError(f"Неизвестный язык: {lang!r}")
+    path = paths(db_path)["config"]
+    if path.is_file():
+        try:
+            stored = json.loads(path.read_text(encoding="utf-8-sig"))
+        except ValueError as exc:
+            raise ValueError(f"Файл настроек {path} повреждён: {exc}. Исправьте или удалите его.") from None
+        if not isinstance(stored, dict):
+            raise ValueError(f"Файл настроек {path}: ожидается JSON-объект.")
+    else:
+        stored = dict(DEFAULTS)
+    stored["language"] = lang
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
 
 
 # ---------- tunnel-client ----------

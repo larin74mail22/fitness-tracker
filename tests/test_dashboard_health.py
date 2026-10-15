@@ -5,7 +5,7 @@
 
 import unittest
 
-from fitness import db, notes
+from fitness import db, i18n, notes
 from fitness.web import charts, health, pages
 from fitness.web.readonly import readonly_connection
 from tests.health_helpers import add_batch, add_sleep, add_source, add_step, canon
@@ -306,6 +306,7 @@ class HealthPageTests(HealthDbCase):
 
 class RangeChartTests(unittest.TestCase):
     def test_range_chart(self):
+        self.enterContext(i18n.use_language("ru"))
         self.assertEqual(charts.range_chart([], "t", "u"), "")
         svg = charts.range_chart([("2026-10-10", 50, 70, 120), ("2026-10-11", 55, 72.5, 110)], "Пульс", "уд/мин")
         self.assertEqual(svg.count('class="range"'), 2)

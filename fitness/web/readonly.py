@@ -11,6 +11,7 @@ import sqlite3
 from contextlib import contextmanager
 
 from .. import db
+from ..i18n import t
 
 _ALLOWED_ACTIONS = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION}
 
@@ -26,27 +27,22 @@ def _authorizer(action, arg1, arg2, db_name, trigger):
 def connect_readonly(path=None):
     db_path = db.resolve_db_path(path)
     if not db_path.is_file():
-        raise DatabaseUnavailable(
-            f"База ещё не создана: {db_path}. Она появится после первой записи через ChatGPT."
-        )
+        raise DatabaseUnavailable(t("db_unavailable.missing", path=db_path))
     try:
         conn = sqlite3.connect(f"file:{db_path.resolve().as_posix()}?mode=ro", uri=True, timeout=5)
     except sqlite3.Error as exc:
-        raise DatabaseUnavailable(f"Не удалось открыть базу {db_path}: {exc}") from None
+        raise DatabaseUnavailable(t("db_unavailable.open_failed", path=db_path, error=exc)) from None
     try:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only = ON")
         version = db.schema_version(conn)
         expected = db.latest_schema_version()
         if version != expected:
-            raise DatabaseUnavailable(
-                f"Версия схемы базы {version}, а панель рассчитана на {expected}. "
-                "Панель ничего не меняет в базе; схему обновит MCP-сервер при следующем вызове инструмента из ChatGPT."
-            )
+            raise DatabaseUnavailable(t("db_unavailable.schema", version=version, expected=expected))
         conn.set_authorizer(_authorizer)
     except sqlite3.Error as exc:
         conn.close()
-        raise DatabaseUnavailable(f"Ошибка чтения базы {db_path}: {exc}") from None
+        raise DatabaseUnavailable(t("db_unavailable.read_failed", path=db_path, error=exc)) from None
     except DatabaseUnavailable:
         conn.close()
         raise

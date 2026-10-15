@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 
 from .. import __version__, db
+from ..i18n import t
 from . import components, config
 
 LOGGER_NAME, TUNNEL_LOGGER_NAME = "fitness.tracker", "fitness.tunnel"
@@ -368,31 +369,44 @@ class Supervisor:
             threading.Thread(target=self.check_mcp, name="mcp-check-once", daemon=True).start()
 
 
-def describe_status(status):
-    """Текст состояния для окна «Состояние» и команды --status."""
-    lines = [f"FITNESS Tracker {status['version']} — запущен {status['started_at']} (PID {status['pid']})",
-             f"База: {status['database']}", ""]
-    for comp_name, title in (("tunnel", "Туннель и MCP"), ("import", "Автоимпорт"), ("dashboard", "Панель")):
+def state_text(comp, lang=None):
+    """Состояние компонента на языке интерфейса (код состояния -> перевод, иначе готовый текст)."""
+    key = f"state.{comp.get('state')}"
+    text = t(key, lang=lang)
+    return comp.get("state_text", comp.get("state")) if text == key else text
+
+
+def describe_status(status, lang=None):
+    """Текст состояния для окна «Состояние» и команды --status. Сообщения компонентов и ошибок — как есть."""
+    def tr(key, **params):
+        return t(key, lang=lang, **params)
+
+    lines = [tr("status.header", version=status["version"], started=status["started_at"], pid=status["pid"]),
+             tr("status.database", path=status["database"]), ""]
+    for comp_name in ("tunnel", "import", "dashboard"):
         comp = status["components"][comp_name]
-        lines.append(f"{title}: {comp['state_text']}" + (f" — {comp['message']}" if comp["message"] else ""))
+        lines.append(f"{tr('status.component.' + comp_name)}: {state_text(comp, lang)}"
+                     + (f" — {comp['message']}" if comp["message"] else ""))
         if comp_name == "tunnel" and comp.get("restarts"):
-            lines.append(f"  перезапусков после сбоя: {comp['restarts']}")
+            lines.append("  " + tr("status.restarts", n=comp["restarts"]))
         if comp_name == "import" and comp.get("last_check"):
-            summary = ", ".join(f"{k}: {v}" for k, v in (comp.get("last_summary") or {}).items()) or "новых файлов нет"
-            lines.append(f"  последняя проверка {comp['last_check']} ({summary}); "
-                         f"импортировано с запуска: {comp['imported_since_start']}")
+            summary = (", ".join(f"{k}: {v}" for k, v in (comp.get("last_summary") or {}).items())
+                       or tr("status.no_new_files"))
+            lines.append("  " + tr("status.import_check", at=comp["last_check"], summary=summary,
+                                   n=comp["imported_since_start"]))
             if comp.get("last_error"):
-                lines.append(f"  ошибка: {comp['last_error']}")
+                lines.append("  " + tr("status.error", error=comp["last_error"]))
     check = status.get("mcp_check")
     if check:
         if check.get("ok"):
-            lines.append(f"Проверка MCP ({check['checked_at']}): server.py отвечает, версия {check['server_version']}, "
-                         f"инструментов {check['tools']}, база " + ("в порядке" if check["database_ok"]
-                                                                   else f"недоступна ({check.get('warning')})"))
+            database = (tr("status.db_ok") if check["database_ok"]
+                        else tr("status.db_unavailable", warning=check.get("warning")))
+            lines.append(tr("status.mcp_ok", at=check["checked_at"], version=check["server_version"],
+                            tools=check["tools"], database=database))
         else:
-            lines.append(f"Проверка MCP ({check['checked_at']}): ОШИБКА — {check.get('error')}")
+            lines.append(tr("status.mcp_failed", at=check["checked_at"], error=check.get("error")))
     lines.append("")
-    lines.append(f"Журналы: {status['logs']}")
+    lines.append(tr("status.logs", path=status["logs"]))
     return lines
 
 

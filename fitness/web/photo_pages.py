@@ -9,19 +9,14 @@ from datetime import date, timedelta
 from html import escape
 
 from .. import photo_store, photo_trash, records
+from ..i18n import t
 from . import pages
 
-# Порядок секций галереи. Фото без ракурса (старые записи) показываются в «Другое» с пометкой.
-SECTIONS = [("front", "Спереди"), ("back", "Сзади"), ("side", "Сбоку"), ("other", "Другое")]
-VIEW_LABELS = dict(SECTIONS)
+# Порядок секций галереи (коды ракурсов из базы). Фото без ракурса (старые записи) показываются в «Другое»
+# с пометкой. Подписи — по ключам view.<код> в словарях fitness/locales.
+SECTIONS = ["front", "back", "side", "other"]
 SIZES = {"m": "60vh", "l": "85vh", "s": "40vh"}
-NOTICES = {
-    "uploaded": "Фото сохранено.",
-    "saved": "Изменения сохранены.",
-    "deleted": "Фото перенесено в корзину. Резервная копия базы сделана; восстановить можно на вкладке «Корзина».",
-    "restored": "Фото восстановлено из корзины и снова есть в галерее.",
-    "purged": "Фото удалено навсегда. Резервная копия базы сделана.",
-}
+NOTICES = ("uploaded", "saved", "deleted", "restored", "purged")   # код в адресе -> ключ photos.notice.<код>
 
 CSS = """
 main{max-width:1400px}
@@ -77,7 +72,7 @@ def tabs(active, period, conn=None):
     count = ""
     if conn is not None:
         count = f" ({conn.execute('SELECT COUNT(*) FROM photo_trash').fetchone()[0]})"
-    items = (("gallery", "/photos", "Галерея"), ("trash", "/photos/trash", "Корзина" + count))
+    items = (("gallery", "/photos", t("photos.tab.gallery")), ("trash", "/photos/trash", t("photos.tab.trash") + count))
     links = []
     for key, path, label in items:
         cls = ' class="active"' if key == active else ""
@@ -86,15 +81,15 @@ def tabs(active, period, conn=None):
 
 
 def view_label(view):
-    return VIEW_LABELS.get(view, "Ракурс не указан")
+    return t("view." + view) if view in SECTIONS else t("view.unknown")
 
 
 def _caption(row):
     parts = [escape(row["taken_on"])]
-    if row["view"] not in VIEW_LABELS:
-        parts.append('<span class="muted">ракурс не указан</span>')
+    if row["view"] not in SECTIONS:
+        parts.append(f'<span class="muted">{t("view.unknown_short")}</span>')
     if row.get("weight_kg") is not None:
-        parts.append(f"{pages.fmt(row['weight_kg'])} кг")
+        parts.append(f"{pages.fmt(row['weight_kg'])} {pages.u('kg')}")
     notes = f'<br><span class="muted">{escape(row["notes"])}</span>' if row.get("notes") else ""
     return " · ".join(parts) + notes
 
@@ -111,7 +106,7 @@ def _photo_rows(conn, date_from, date_to):
 
 def group_by_view(rows):
     """Фото по секциям, внутри — от старых к новым. Неизвестный или пустой ракурс — в «Другое»."""
-    groups = {key: [] for key, _ in SECTIONS}
+    groups = {key: [] for key in SECTIONS}
     for row in rows:
         groups[row["view"] if row["view"] in groups else "other"].append(row)
     return groups
@@ -124,42 +119,42 @@ def gallery_page(conn, period, notice=None, marked=None):
     groups = group_by_view(rows)
 
     sections = []
-    for key, label in SECTIONS:
+    for key in SECTIONS:
+        label = view_label(key)
         shots = []
         for r in groups[key]:
             checked = " checked" if marked == r["id"] else ""
             cls = "shot marked" if checked else "shot"
             shots.append(
                 f'<figure class="{cls}"><a href="{pages.link("/photos/" + str(r["id"]), period=period)}" '
-                f'title="Открыть крупно"><img src="/photo/{r["id"]}" alt="{escape(label)}, {escape(r["taken_on"])}" '
-                f'loading="lazy"></a><figcaption>{_caption(r)}</figcaption>'
-                f'<label><input type="checkbox" name="id" value="{r["id"]}"{checked}> для сравнения</label></figure>')
+                f'title="{t("photos.open_large")}"><img src="/photo/{r["id"]}" '
+                f'alt="{escape(label)}, {escape(r["taken_on"])}" loading="lazy"></a>'
+                f'<figcaption>{_caption(r)}</figcaption>'
+                f'<label><input type="checkbox" name="id" value="{r["id"]}"{checked}> {t("photos.for_compare")}'
+                "</label></figure>")
         if not shots:
-            shots.append(f'<p class="empty">Снимков «{escape(label)}» за этот период нет.</p>'
+            shots.append(f'<p class="empty">{escape(t("photos.section_empty", view=label))}</p>'
                          f'<a class="btn secondary" href="{pages.link("/photos/upload", view=key, period=period)}">'
-                         "Добавить снимок</a>")
+                         f'{t("photos.add_shot")}</a>')
         sections.append(f'<section><h3>{escape(label)} <span class="muted">({len(groups[key])})</span></h3>'
                         f'{"".join(shots)}</section>')
 
-    upload = f'<a class="btn" href="{pages.link("/photos/upload", period=period)}">Загрузить фото</a>'
+    upload = f'<a class="btn" href="{pages.link("/photos/upload", period=period)}">{t("photos.upload")}</a>'
     if total == 0:
-        intro = ('<p class="empty">Фото за этот период нет. Нажмите «Загрузить фото», выберите дату и ракурс — '
-                 "снимки появятся здесь в колонках по ракурсам.</p>")
+        intro = f'<p class="empty">{escape(t("photos.none_yet"))}</p>'
     elif not rows:
-        intro = '<p class="empty">Фото за этот период нет. Выберите период подлиннее.</p>'
+        intro = f'<p class="empty">{escape(t("photos.none_in_period"))}</p>'
     else:
         intro = ""
-    head = (f'<div class="card"><h2>Фото прогресса</h2>{tabs("gallery", period, conn)}'
+    head = (f'<div class="card"><h2>{t("photos.title")}</h2>{tabs("gallery", period, conn)}'
             f'{pages.period_selector("/photos", period)}'
-            f'<div class="toolbar">{upload}<span class="muted">Отметьте два снимка и нажмите «Сравнить». '
-            "Нажатие на снимок открывает его крупно.</span></div>"
+            f'<div class="toolbar">{upload}<span class="muted">{escape(t("photos.gallery_hint"))}</span></div>'
             f"{intro}</div>")
     gallery = (f'<form class="card" method="get" action="/photos/compare">{_hidden(period=period)}'
-               f'<div class="sticky toolbar"><button class="btn" type="submit">Сравнить</button>'
-               f'<span class="muted">Период: {escape(date_from)} — {escape(date_to)}. '
-               f"Внутри колонки снимки идут от старых к новым.</span></div>"
+               f'<div class="sticky toolbar"><button class="btn" type="submit">{t("photos.compare")}</button>'
+               f'<span class="muted">{escape(t("photos.gallery_period", start=date_from, end=date_to))}</span></div>'
                f'<div class="gallery">{"".join(sections)}</div></form>')
-    return _page("Фото", _notice(notice) + head + gallery)
+    return _page(t("nav.photos"), _notice(notice) + head + gallery)
 
 
 def upload_page(period, csrf, error=None, values=None, today=None):
@@ -167,32 +162,31 @@ def upload_page(period, csrf, error=None, values=None, today=None):
     today = today or date.today()
     taken_on = values.get("taken_on") or today.isoformat()
     max_date = (today + timedelta(days=1)).isoformat()
-    first = values.get("view") if values.get("view") in VIEW_LABELS else None
+    first = values.get("view") if values.get("view") in SECTIONS else None
     inputs = []
-    for key, label in sorted(SECTIONS, key=lambda s: s[0] != first):
-        inputs.append(f'<label for="f-{key}">{escape(label)}</label>'
+    for key in sorted(SECTIONS, key=lambda s: s != first):
+        inputs.append(f'<label for="f-{key}">{escape(view_label(key))}</label>'
                       f'<input id="f-{key}" type="file" name="file_{key}" multiple '
                       f'accept="image/jpeg,image/png,image/webp">')
+    hint = t("photos.upload_hint", formats=photo_store.FORMAT_NAMES, mb=photo_store.MAX_FILE_BYTES // (1024 * 1024),
+             n=photo_store.MAX_FILES)
     body = (
         _notice(error, error=True)
-        + '<div class="card"><h2>Загрузить фото</h2>'
-        '<p class="muted">Выберите файлы в поле нужного ракурса: можно сразу несколько ракурсов и несколько файлов '
-        f"в каждом. Форматы: {photo_store.FORMAT_NAMES}, до {photo_store.MAX_FILE_BYTES // (1024 * 1024)} МБ "
-        f"на файл, до {photo_store.MAX_FILES} файлов за раз. Переименовывать файлы не нужно.</p>"
-        + ('<p class="warn">Файлы нужно выбрать заново: браузер не сохраняет их после ошибки.</p>' if error else "")
+        + f'<div class="card"><h2>{t("photos.upload")}</h2><p class="muted">{escape(hint)}</p>'
+        + (f'<p class="warn">{escape(t("photos.reselect_files"))}</p>' if error else "")
         + '<form class="grid" method="post" action="/photos/upload" enctype="multipart/form-data">'
         + _hidden(csrf=csrf, period=period)
-        + f'<label for="taken_on">Дата съёмки</label><input id="taken_on" type="date" name="taken_on" '
+        + f'<label for="taken_on">{t("photos.taken_on")}</label><input id="taken_on" type="date" name="taken_on" '
           f'value="{escape(taken_on)}" max="{max_date}" required>'
         + "".join(inputs)
-        + '<label for="notes">Комментарий</label>'
+        + f'<label for="notes">{t("photos.comment")}</label>'
           f'<input id="notes" type="text" name="notes" maxlength="2000" value="{escape(values.get("notes") or "")}" '
-          'placeholder="необязательно">'
-        + '<div class="full toolbar"><button class="btn" type="submit">Сохранить</button>'
-          f'<a class="btn secondary" href="{pages.link("/photos", period=period)}">Отмена</a></div>'
+          f'placeholder="{t("photos.optional")}">'
+        + f'<div class="full toolbar"><button class="btn" type="submit">{t("btn.save")}</button>'
+          f'<a class="btn secondary" href="{pages.link("/photos", period=period)}">{t("btn.cancel")}</a></div>'
         + "</form></div>"
     )
-    return _page("Загрузить фото", body)
+    return _page(t("photos.upload"), body)
 
 
 def _photo_or_none(conn, photo_id):
@@ -203,8 +197,8 @@ def _photo_or_none(conn, photo_id):
 
 
 def missing_photo_page():
-    return _page("Фото не найдено", '<div class="card"><h2>Фото не найдено</h2>'
-                                    '<p><a href="/photos">К галерее</a></p></div>')
+    return _page(t("photos.not_found"), f'<div class="card"><h2>{t("photos.not_found")}</h2>'
+                                        f'<p><a href="/photos">{t("photos.to_gallery")}</a></p></div>')
 
 
 def photo_page(conn, photo_id, period, csrf, notice=None, error=None, values=None):
@@ -213,35 +207,35 @@ def photo_page(conn, photo_id, period, csrf, notice=None, error=None, values=Non
         return None
     values = values or {}
     view_now = values.get("view", row["view"] or "")
-    options = [] if row["view"] in VIEW_LABELS and view_now else ['<option value="">не указан</option>']
-    for key, label in SECTIONS:
+    options = [] if row["view"] in SECTIONS and view_now else [f'<option value="">{t("view.unset")}</option>']
+    for key in SECTIONS:
         sel = " selected" if key == view_now else ""
-        options.append(f'<option value="{key}"{sel}>{escape(label)}</option>')
+        options.append(f'<option value="{key}"{sel}>{escape(view_label(key))}</option>')
     back = pages.link("/photos", period=period)
     compare = pages.link("/photos", period=period, mark=row["id"])
     body = (
         _notice(notice) + _notice(error, error=True)
         + f'<div class="card"><h2>{escape(view_label(row["view"]))} · {escape(row["taken_on"])}</h2>'
-        f'<div class="toolbar"><a class="btn secondary" href="{back}">← К галерее</a>'
-        f'<a class="btn" href="{compare}">Сравнить с другим фото</a>'
-        f'<a class="btn secondary" href="/photo/{row["id"]}">Оригинал в полном размере</a></div>'
+        f'<div class="toolbar"><a class="btn secondary" href="{back}">← {t("photos.to_gallery")}</a>'
+        f'<a class="btn" href="{compare}">{t("photos.compare_with")}</a>'
+        f'<a class="btn secondary" href="/photo/{row["id"]}">{t("photos.original")}</a></div>'
         f'<figure class="big"><img src="/photo/{row["id"]}" alt="{escape(view_label(row["view"]))}">'
         f'<figcaption>{_caption(row)}</figcaption></figure></div>'
-        + '<div class="card"><h2>Изменить подпись</h2>'
+        + f'<div class="card"><h2>{t("photos.edit_caption")}</h2>'
         f'<form class="grid" method="post" action="/photos/{row["id"]}/edit">'
         + _hidden(csrf=csrf, period=period, updated_at=row["updated_at"])
-        + f'<label for="taken_on">Дата съёмки</label><input id="taken_on" type="date" name="taken_on" '
+        + f'<label for="taken_on">{t("photos.taken_on")}</label><input id="taken_on" type="date" name="taken_on" '
           f'value="{escape(values.get("taken_on", row["taken_on"]))}" required>'
-        + f'<label for="view">Ракурс</label><select id="view" name="view">{"".join(options)}</select>'
-        + '<label for="notes">Комментарий</label><textarea id="notes" name="notes" maxlength="2000">'
+        + f'<label for="view">{t("photos.view")}</label><select id="view" name="view">{"".join(options)}</select>'
+        + f'<label for="notes">{t("photos.comment")}</label><textarea id="notes" name="notes" maxlength="2000">'
           f'{escape(values.get("notes", row["notes"] or ""))}</textarea>'
-        + '<div class="full toolbar"><button class="btn" type="submit">Сохранить</button>'
-          f'<a class="btn secondary" href="{back}">Отмена</a>'
+        + f'<div class="full toolbar"><button class="btn" type="submit">{t("btn.save")}</button>'
+          f'<a class="btn secondary" href="{back}">{t("btn.cancel")}</a>'
           f'<a class="btn secondary" href="{pages.link("/photos/" + str(row["id"]) + "/delete", period=period)}">'
-          "Удалить…</a></div></form>"
-        + f'<p class="muted">Файл: data/photos/{escape(row["file_path"])}. Правка подписи файл не меняет.</p></div>'
+          f'{t("photos.delete")}</a></div></form>'
+        + f'<p class="muted">{escape(t("photos.file_note", path="data/photos/" + row["file_path"]))}</p></div>'
     )
-    return _page("Фото", body)
+    return _page(t("nav.photos"), body)
 
 
 def delete_page(conn, photo_id, period, csrf, error=None):
@@ -251,31 +245,30 @@ def delete_page(conn, photo_id, period, csrf, error=None):
     code = records.prepare_delete(conn, "photo", row["id"])["confirmation_code"]
     body = (
         _notice(error, error=True)
-        + '<div class="card"><h2>Удалить фото?</h2>'
-        f'<figure class="big"><img src="/photo/{row["id"]}" alt="удаляемое фото" style="max-height:40vh">'
+        + f'<div class="card"><h2>{t("photos.delete_question")}</h2>'
+        f'<figure class="big"><img src="/photo/{row["id"]}" alt="{t("photos.delete_alt")}" style="max-height:40vh">'
         f'<figcaption>{escape(view_label(row["view"]))} · {_caption(row)}</figcaption></figure>'
-        "<p>Фото исчезнет из галереи и из сравнения и попадёт в корзину: файл переносится из data/photos "
-        "в data/photos_trash, дата, ракурс и комментарий сохраняются. Перед удалением автоматически делается "
-        "и проверяется резервная копия базы (папка data/backups). Вернуть фото можно на вкладке «Корзина».</p>"
+        f'<p>{escape(t("photos.delete_text"))}</p>'
         f'<form method="post" action="/photos/{row["id"]}/delete" class="toolbar">'
         + _hidden(csrf=csrf, period=period, code=code)
-        + '<button class="btn danger" type="submit">Да, переместить в корзину</button>'
-          f'<a class="btn secondary" href="{pages.link("/photos/" + str(row["id"]), period=period)}">Отмена</a>'
-          "</form></div>"
+        + f'<button class="btn danger" type="submit">{t("photos.delete_confirm")}</button>'
+          f'<a class="btn secondary" href="{pages.link("/photos/" + str(row["id"]), period=period)}">'
+          f'{t("btn.cancel")}</a></form></div>'
     )
-    return _page("Удалить фото", body)
+    return _page(t("photos.delete_title"), body)
 
 
 def _trash_caption(item):
     parts = [f"<b>{escape(item['taken_on'])}</b>", escape(view_label(item["view"]))]
     notes = f'<br><span class="muted">{escape(item["notes"])}</span>' if item.get("notes") else ""
-    deleted = f'<br><span class="muted">Удалено: {escape(item["deleted_at"].replace("T", " ").rstrip("Z"))} UTC</span>'
+    deleted = (f'<br><span class="muted">{t("photos.deleted_at")} '
+               f'{escape(item["deleted_at"].replace("T", " ").rstrip("Z"))} UTC</span>')
     return " · ".join(parts) + notes + deleted
 
 
 def _trash_thumb(item, present, height=None):
     if not present:
-        return '<p class="warn">Файл в корзине не найден (data/photos_trash).</p>'
+        return f'<p class="warn">{escape(t("photos.trash_file_missing"))}</p>'
     style = f' style="max-height:{height}"' if height else ""
     return (f'<img src="/photo-trash/{item["id"]}" alt="{escape(view_label(item["view"]))}, '
             f'{escape(item["taken_on"])}" loading="lazy"{style}>')
@@ -291,21 +284,19 @@ def trash_page(conn, period, csrf, trash_dir, notice=None, error=None):
             f'<figure class="shot">{_trash_thumb(item, present)}<figcaption>{_trash_caption(item)}</figcaption>'
             f'<form method="post" action="/photos/trash/{item["id"]}/restore" class="toolbar">'
             + _hidden(csrf=csrf, period=period)
-            + ('<button class="btn" type="submit">Восстановить</button>' if present else "")
-            + f'<a class="btn secondary" href="{purge}">Удалить навсегда…</a></form></figure>')
+            + (f'<button class="btn" type="submit">{t("photos.restore")}</button>' if present else "")
+            + f'<a class="btn secondary" href="{purge}">{t("photos.purge")}</a></form></figure>')
     if rows:
         content = f'<div class="gallery">{"".join(shots)}</div>'
     else:
-        content = '<p class="empty">Корзина пуста.</p>'
+        content = f'<p class="empty">{t("photos.trash_empty")}</p>'
     body = (
         _notice(notice) + _notice(error, error=True)
-        + f'<div class="card"><h2>Фото прогресса</h2>{tabs("trash", period, conn)}'
-        '<p class="muted">Удалённые снимки не показываются в галерее и в сравнении. «Восстановить» возвращает '
-        "снимок с прежними датой, ракурсом и комментарием. «Удалить навсегда» удаляет файл из data/photos_trash "
-        "и запись корзины после отдельного подтверждения и резервной копии базы.</p>"
+        + f'<div class="card"><h2>{t("photos.title")}</h2>{tabs("trash", period, conn)}'
+        f'<p class="muted">{escape(t("photos.trash_hint"))}</p>'
         f"{content}</div>"
     )
-    return _page("Корзина фото", body)
+    return _page(t("photos.trash_title"), body)
 
 
 def purge_page(conn, trash_id, period, csrf, trash_dir, error=None):
@@ -315,27 +306,25 @@ def purge_page(conn, trash_id, period, csrf, trash_dir, error=None):
     item = dict(row)
     present = photo_trash.trash_file(item, trash_dir) is not None
     code = photo_trash.purge_code(item, present)
-    what = ("Файл будет удалён из папки data/photos_trash, а запись — из корзины." if present else
-            "Файла в корзине уже нет: будет удалена только запись корзины.")
+    what = t("photos.purge_what_file") if present else t("photos.purge_what_record")
     body = (
         _notice(error, error=True)
-        + '<div class="card"><h2>Удалить фото навсегда?</h2>'
+        + f'<div class="card"><h2>{t("photos.purge_question")}</h2>'
         f'<figure class="big">{_trash_thumb(item, present, "40vh")}'
         f"<figcaption>{_trash_caption(item)}</figcaption></figure>"
-        f"<p>{what} Восстановить фото после этого будет нельзя. Перед удалением автоматически делается "
-        "и проверяется резервная копия базы (папка data/backups).</p>"
+        f"<p>{escape(what)} {escape(t('photos.purge_text'))}</p>"
         f'<form method="post" action="/photos/trash/{item["id"]}/purge" class="toolbar">'
         + _hidden(csrf=csrf, period=period, code=code)
-        + '<button class="btn danger" type="submit">Да, удалить навсегда</button>'
-          f'<a class="btn secondary" href="{pages.link("/photos/trash", period=period)}">Отмена</a>'
+        + f'<button class="btn danger" type="submit">{t("photos.purge_confirm")}</button>'
+          f'<a class="btn secondary" href="{pages.link("/photos/trash", period=period)}">{t("btn.cancel")}</a>'
           "</form></div>"
     )
-    return _page("Удалить навсегда", body)
+    return _page(t("photos.purge_title"), body)
 
 
 def missing_trash_page():
-    return _page("Не найдено", '<div class="card"><h2>Фото в корзине не найдено</h2>'
-                               '<p><a href="/photos/trash">К корзине</a></p></div>')
+    return _page(t("not_found.title"), f'<div class="card"><h2>{t("photos.trash_not_found")}</h2>'
+                                       f'<p><a href="/photos/trash">{t("photos.to_trash")}</a></p></div>')
 
 
 def parse_compare_ids(values):
@@ -352,49 +341,48 @@ def parse_compare_ids(values):
 def compare_page(conn, raw_ids, period, size="m"):
     ids = parse_compare_ids(raw_ids)
     back = pages.link("/photos", period=period)
+    back_button = f'<div class="card"><a class="btn" href="{back}">← {t("photos.to_gallery")}</a></div>'
     if ids is None:
-        return _page("Сравнение", _notice("Для сравнения отметьте ровно две фотографии.", error=True)
-                     + f'<div class="card"><a class="btn" href="{back}">← К галерее</a></div>')
+        return _page(t("photos.compare_title"), _notice(t("photos.compare_need_two"), error=True) + back_button)
     photos = [_photo_or_none(conn, i) for i in ids]
     if None in photos:
-        return _page("Сравнение", _notice("Одна из выбранных фотографий не найдена.", error=True)
-                     + f'<div class="card"><a class="btn" href="{back}">← К галерее</a></div>')
+        return _page(t("photos.compare_title"), _notice(t("photos.compare_missing"), error=True) + back_button)
     size = size if size in SIZES else "m"
     height = SIZES[size]
     a, b = photos
     warning = ""
     if a["view"] != b["view"]:
-        warning = _notice(f"Ракурсы разные: «{view_label(a['view'])}» и «{view_label(b['view'])}». "
-                          "Сравнение может вводить в заблуждение.", error=True)
+        warning = _notice(t("photos.compare_views_differ", a=view_label(a["view"]), b=view_label(b["view"])),
+                          error=True)
     days = (date.fromisoformat(b["taken_on"]) - date.fromisoformat(a["taken_on"])).days
-    gap = f"Между снимками {abs(days)} дн." if days else "Снимки одной даты."
+    gap = t("photos.compare_gap", n=abs(days)) if days else t("photos.compare_same_day")
     sizes = "".join(
         f'<a class="{"active" if key == size else ""}" '
         f'href="{pages.link("/photos/compare", period=period, size=key)}&amp;id={ids[0]}&amp;id={ids[1]}">'
-        f"{label}</a>" for key, label in (("s", "Мелко"), ("m", "Средне"), ("l", "Крупно")))
+        f'{t("photos.size." + key)}</a>' for key in ("s", "m", "l"))
     swap = f'{pages.link("/photos/compare", period=period, size=size)}&amp;id={ids[1]}&amp;id={ids[0]}'
     figures = "".join(
-        f'<figure><a href="/photo/{p["id"]}" title="Открыть оригинал"><img src="/photo/{p["id"]}" '
+        f'<figure><a href="/photo/{p["id"]}" title="{t("photos.open_original")}"><img src="/photo/{p["id"]}" '
         f'style="height:{height}" alt="{escape(view_label(p["view"]))}, {escape(p["taken_on"])}"></a>'
         f'<figcaption><b>{escape(p["taken_on"])}</b> · {escape(view_label(p["view"]))}'
-        + (f" · {pages.fmt(p['weight_kg'])} кг" if p.get("weight_kg") is not None else "")
+        + (f" · {pages.fmt(p['weight_kg'])} {pages.u('kg')}" if p.get("weight_kg") is not None else "")
         + (f'<br><span class="muted">{escape(p["notes"])}</span>' if p.get("notes") else "")
         + "</figcaption></figure>" for p in photos)
     body = (
         warning
-        + f'<div class="card"><h2>Сравнение</h2><div class="toolbar">'
-        f'<a class="btn secondary" href="{back}">✕ Выйти из сравнения</a>'
-        f'<a class="btn secondary" href="{swap}">⇄ Поменять местами</a>'
+        + f'<div class="card"><h2>{t("photos.compare_title")}</h2><div class="toolbar">'
+        f'<a class="btn secondary" href="{back}">✕ {t("photos.compare_exit")}</a>'
+        f'<a class="btn secondary" href="{swap}">⇄ {t("photos.compare_swap")}</a>'
         f'<span class="periods chips">{sizes}</span><span class="muted">{escape(gap)} '
-        "Нажатие на снимок открывает оригинал для увеличения.</span></div>"
+        f'{escape(t("photos.compare_hint"))}</span></div>'
         f'<div class="compare">{figures}</div></div>'
     )
-    return _page("Сравнение", body)
+    return _page(t("photos.compare_title"), body)
 
 
 def ok_notice(code, count=None):
-    message = NOTICES.get(code)
+    if code not in NOTICES:
+        return None
     if code == "uploaded" and count and count.isdigit() and int(count) > 1:
-        message = f"Сохранено фото: {int(count)}."
-    return message
-
+        return t("photos.notice.uploaded_many", n=int(count))
+    return t("photos.notice." + code)

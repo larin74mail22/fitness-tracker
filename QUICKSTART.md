@@ -73,7 +73,7 @@ ChatGPT покажет после обновления приложения/ко
 | Путь | Что |
 |---|---|
 | `data\fitness.db` | база (резервные копии — `data\backups`) |
-| `data\launcher.json` | настройки трекера (путь к tunnel-client, интервал импорта, порт панели); секретов нет |
+| `data\launcher.json` | настройки трекера (путь к tunnel-client, интервал импорта, порт панели, язык `language`: `en` или `ru`); секретов нет |
 | `data\logs\tracker.log` | журнал трекера и импорта (1 МБ × 5 файлов) |
 | `data\logs\tunnel.log` | вывод tunnel-client и server.py (2 МБ × 3) |
 | `data\health_syncthing` | папка Syncthing (только чтение, трекер её не меняет) |

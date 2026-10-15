@@ -97,7 +97,7 @@ def _client(command, args, db_path):
     if args.json:
         print(json.dumps(response, ensure_ascii=False, indent=1, default=str))
     elif command == "status" and response.get("ok"):
-        _say("\n".join(sv.describe_status(response["status"])))
+        _say("\n".join(sv.describe_status(response["status"], config.read_language(db_path))))
     elif command == "stop" and response.get("ok"):
         stopped = sv.wait_until(lambda: not sv.is_running(db_path), 150, 0.5)
         _say("FITNESS Tracker остановлен." if stopped else "Команда остановки отправлена, трекер ещё завершается.")

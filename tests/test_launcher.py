@@ -346,7 +346,8 @@ class SupervisorTest(LauncherTestCase):
         status = sv.send_command("status", db_path=self.db_path)["status"]
         self.assertEqual(status["components"]["tunnel"]["state"], components.DISABLED)
         self.assertEqual(status["components"]["dashboard"]["state"], components.STOPPED, "панель не запущена заранее")
-        self.assertIn("Автоимпорт", "\n".join(sv.describe_status(status)))
+        self.assertIn("Автоимпорт", "\n".join(sv.describe_status(status, "ru")))
+        self.assertIn("Auto-import", "\n".join(sv.describe_status(status, "en")))
         self.assertTrue(sv.send_command("import_now", db_path=self.db_path)["ok"])
         self.assertTrue(sv.send_command("restart", {"component": "import"}, db_path=self.db_path)["ok"])
         self.assertTrue(wait_until(lambda: sup.importer.state == components.RUNNING))
@@ -507,7 +508,7 @@ class CliProcessTest(LauncherTestCase):
         status = self.run_cli("--status")
         self.assertEqual(status.returncode, 0, status.stderr)
         text = status.stdout.decode("utf-8")              # русский текст в UTF-8 без PYTHONIOENCODING
-        self.assertIn("Автоимпорт: работает", text)
+        self.assertIn("Auto-import: running", text)    # язык по умолчанию — английский
         second = self.run_cli("--no-tray")
         self.assertEqual(second.returncode, 0)
         self.assertIn("уже запущен", second.stdout.decode("utf-8"))

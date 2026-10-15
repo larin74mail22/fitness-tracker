@@ -3,6 +3,8 @@
 from datetime import date
 from html import escape
 
+from ..i18n import t
+
 WIDTH, HEIGHT = 720, 240
 PAD_LEFT, PAD_RIGHT, PAD_TOP, PAD_BOTTOM = 52, 16, 16, 30
 
@@ -105,8 +107,8 @@ def range_chart(points, title, unit):
         for x, (d, lo, _, hi) in zip(xs, points))
     path = " ".join(f"{x:.1f},{y(avg):.1f}" for x, (_, _, avg, _) in zip(xs, points))
     dots = "".join(
-        f'<circle class="dot" cx="{x:.1f}" cy="{y(avg):.1f}" r="3.5"><title>{escape(d)}: среднее {_fmt(avg)} '
-        f'{escape(unit)}, мин. {_fmt(lo)}, макс. {_fmt(hi)}</title></circle>'
+        f'<circle class="dot" cx="{x:.1f}" cy="{y(avg):.1f}" r="3.5"><title>{escape(d)}: '
+        f'{escape(t("chart.range_point", avg=_fmt(avg), unit=unit, low=_fmt(lo), high=_fmt(hi)))}</title></circle>'
         for x, (d, lo, avg, hi) in zip(xs, points))
     body = f'{ranges}<polyline class="line" points="{path}"/>{dots}'
     return _frame(title, low, high, points[0][0], points[-1][0], body)

@@ -4,6 +4,10 @@
 Единственная запись — раздел «Фото»: POST на /photos/upload, /photos/<id>/edit, /photos/<id>/delete
 (перенос в корзину), /photos/trash/<id>/restore и /photos/trash/<id>/purge.
 Каждый такой запрос проверяет Host, Origin (только эта же панель), секретный токен формы и размер тела.
+Ещё одна форма — переключатель языка EN | RU (POST /settings/language) с теми же проверками: язык записывается
+в настройки data\launcher.json, а не в базу.
+
+Язык интерфейса читается из настроек на каждом запросе, поэтому переключение действует сразу и без перезапуска.
 """
 
 import hmac
@@ -18,8 +22,10 @@ from pathlib import Path
 from email.message import Message
 from urllib.parse import parse_qs, urlencode, urlsplit
 
-from .. import __version__, db, health_status, photo_store, photo_trash
+from .. import __version__, db, health_status, i18n, photo_store, photo_trash
 from ..errors import NotFoundError, TrackerError
+from ..i18n import t
+from ..launcher import config
 from . import pages, photo_pages, sync_page
 from .readonly import DatabaseUnavailable, readonly_connection
 
@@ -61,18 +67,18 @@ def parse_multipart(body, content_type):
     header["content-type"] = content_type
     boundary = header.get_param("boundary")
     if header.get_content_type() != "multipart/form-data" or not boundary or len(boundary) > 200:
-        raise BadRequest(HTTPStatus.BAD_REQUEST, "Ожидается форма с файлами (multipart/form-data).")
+        raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.multipart_expected"))
     delimiter = b"--" + boundary.encode("latin-1")
     chunks = body.split(delimiter)
     if len(chunks) < 2 or len(chunks) > MAX_MULTIPART_PARTS + 2 or not chunks[-1].startswith(b"--"):
-        raise BadRequest(HTTPStatus.BAD_REQUEST, "Форма повреждена или содержит слишком много полей.")
+        raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.form_too_many_parts"))
     fields, files = {}, []
     for chunk in chunks[1:-1]:
         if not chunk.startswith(b"\r\n") or not chunk.endswith(b"\r\n"):
-            raise BadRequest(HTTPStatus.BAD_REQUEST, "Форма повреждена.")
+            raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.form_damaged"))
         head, sep, data = chunk[2:-2].partition(b"\r\n\r\n")
         if not sep:
-            raise BadRequest(HTTPStatus.BAD_REQUEST, "Форма повреждена.")
+            raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.form_damaged"))
         part = Message()
         for line in head.decode("utf-8", "replace").split("\r\n"):
             key, colon, value = line.partition(":")
@@ -80,7 +86,7 @@ def parse_multipart(body, content_type):
                 part[key.strip()] = value.strip()
         name = part.get_param("name", header="content-disposition")
         if not name:
-            raise BadRequest(HTTPStatus.BAD_REQUEST, "Форма повреждена: поле без имени.")
+            raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.form_unnamed_field"))
         filename = part.get_param("filename", header="content-disposition")
         if filename is None:
             fields[name] = data.decode("utf-8", "replace")
@@ -144,7 +150,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
     def _refuse_method(self):
-        self._send(HTTPStatus.METHOD_NOT_ALLOWED, "Панель только для чтения.\n",
+        self._send(HTTPStatus.METHOD_NOT_ALLOWED, t("error.read_only") + "\n",
                    "text/plain; charset=utf-8", extra={"Allow": "GET, HEAD"})
 
     do_PUT = do_PATCH = do_DELETE = do_OPTIONS = lambda self: self._refuse_method()
@@ -164,12 +170,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # Защита от DNS rebinding: чужое имя хоста в запросе — отказ.
         host = (self.headers.get("Host") or "").strip().lower()
         if host not in self.server.allowed_hosts:
-            self._send(HTTPStatus.BAD_REQUEST, "Неверный заголовок Host.\n", "text/plain; charset=utf-8",
+            self._send(HTTPStatus.BAD_REQUEST, t("error.bad_host") + "\n", "text/plain; charset=utf-8",
                        head_only=head_only)
             return False
         return True
 
+    def _begin(self, back):
+        """Язык и форма переключателя языка для этого запроса (у каждого потока панели свои)."""
+        i18n.set_language(config.read_language(self.server.db_path))
+        pages.language_form.set((self.server.csrf_token, back))
+
     def _handle(self, head_only):
+        self._begin(self.path)
         if not self._host_ok(head_only):
             return
         url = urlsplit(self.path)
@@ -218,8 +230,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             log(f"error on {url.path}: {exc!r}\n{traceback.format_exc()}")
             self._send(HTTPStatus.INTERNAL_SERVER_ERROR,
-                       pages.layout("Ошибка", "", '<div class="card"><h2>Внутренняя ошибка панели</h2>'
-                                    "<p>Подробности записаны в окно, где запущена панель.</p></div>"),
+                       pages.message_page(t("error.title"), t("error.internal"), t("error.internal_details")),
                        head_only=head_only)
 
     # ---------- Раздел «Фото» ----------
@@ -280,9 +291,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self._send_page(self._render_readonly(render), head_only)
 
     def do_POST(self):
+        self._begin("/photos")
         if not self._host_ok():
             return
         url = urlsplit(self.path)
+        if url.path == "/settings/language":
+            self._post_language()
+            return
         match = _PHOTO_POST_RE.match(url.path)
         trash = _TRASH_POST_RE.match(url.path)
         if url.path != "/photos/upload" and match is None and trash is None:
@@ -301,45 +316,61 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._post_delete(int(match.group(1)), fields, period)
         except BadRequest as exc:
             self.close_connection = True
-            self._send(exc.status, pages.layout("Ошибка", "/photos", '<div class="card"><h2>Запрос отклонён</h2>'
-                                                f"<p>{pages.escape(str(exc))}</p>"
-                                                '<p><a href="/photos">К галерее</a></p></div>'))
+            self._send(exc.status, pages.message_page(t("error.title"), t("error.rejected"), str(exc), "/photos",
+                                                      ("/photos", t("photos.to_gallery"))))
         except Exception as exc:
             log(f"error on POST {url.path}: {exc!r}\n{traceback.format_exc()}")
             self._send(HTTPStatus.INTERNAL_SERVER_ERROR,
-                       pages.layout("Ошибка", "/photos", '<div class="card"><h2>Внутренняя ошибка панели</h2>'
-                                    "<p>Ничего не сохранено. Подробности записаны в окно, где запущена панель.</p>"
-                                    '<p><a href="/photos">К галерее</a></p></div>'))
+                       pages.message_page(t("error.title"), t("error.internal"), t("error.internal_nothing_saved"),
+                                          "/photos", ("/photos", t("photos.to_gallery"))))
+
+    def _post_language(self):
+        """Переключатель EN | RU: сохранить язык в настройках и вернуться на ту же страницу."""
+        try:
+            fields, _ = self._read_form(upload=False)
+            lang = fields.get("lang", "")
+            if lang not in i18n.LANGUAGES:
+                raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.unknown_language"))
+            try:
+                config.save_language(lang, self.server.db_path)
+            except (OSError, ValueError) as exc:
+                log(f"language not saved: {exc}")
+                raise BadRequest(HTTPStatus.INTERNAL_SERVER_ERROR, t("error.language_not_saved", error=exc)) from None
+        except BadRequest as exc:
+            self.close_connection = True
+            self._send(exc.status, pages.message_page(t("error.title"), t("error.rejected"), str(exc), "",
+                                                      ("/", t("nav.overview"))))
+            return
+        self._redirect(_local_path(fields.get("next")))
 
     def _read_form(self, upload):
         """Проверить источник, размер и токен формы, прочитать тело."""
         origin = (self.headers.get("Origin") or "").strip().lower()
         if origin not in self.server.allowed_origins:
-            raise BadRequest(HTTPStatus.FORBIDDEN, "Запрос пришёл не со страницы этой панели.")
+            raise BadRequest(HTTPStatus.FORBIDDEN, t("error.foreign_origin"))
         try:
             length = int(self.headers.get("Content-Length", ""))
         except ValueError:
-            raise BadRequest(HTTPStatus.LENGTH_REQUIRED, "Не указан размер запроса.") from None
+            raise BadRequest(HTTPStatus.LENGTH_REQUIRED, t("error.no_length")) from None
         limit = MAX_UPLOAD_REQUEST if upload else MAX_FORM_REQUEST
         if length < 0 or length > limit:
             # Тело не читается: соединение закрывается после ответа.
             raise BadRequest(HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-                             f"Слишком большой запрос: за один раз не больше {limit // (1024 * 1024) or 1} МБ, "
-                             f"один файл — до {photo_store.MAX_FILE_BYTES // (1024 * 1024)} МБ. Ничего не сохранено.")
+                             t("error.too_large", total=limit // (1024 * 1024) or 1,
+                               file=photo_store.MAX_FILE_BYTES // (1024 * 1024)))
         body = self.rfile.read(length)
         if len(body) != length:
-            raise BadRequest(HTTPStatus.BAD_REQUEST, "Запрос оборвался, ничего не сохранено.")
+            raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.truncated"))
         content_type = self.headers.get("Content-Type", "")
         if upload:
             fields, files = parse_multipart(body, content_type)
         else:
             if not content_type.startswith("application/x-www-form-urlencoded"):
-                raise BadRequest(HTTPStatus.BAD_REQUEST, "Ожидается обычная форма.")
+                raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.urlencoded_expected"))
             parsed = parse_qs(body.decode("utf-8", "replace"), keep_blank_values=True)
             fields, files = {k: v[0] for k, v in parsed.items()}, []
         if not hmac.compare_digest(fields.get("csrf", "").encode(), self.server.csrf_token.encode()):
-            raise BadRequest(HTTPStatus.FORBIDDEN, "Форма устарела (панель перезапускалась). "
-                                                   "Обновите страницу и повторите.")
+            raise BadRequest(HTTPStatus.FORBIDDEN, t("error.stale_form"))
         return fields, files
 
     def _write_connection(self):
@@ -351,7 +382,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         for field, filename, data in files:
             view = field[5:] if field.startswith("file_") else None
             if view not in photo_store.PHOTO_VIEWS:
-                raise BadRequest(HTTPStatus.BAD_REQUEST, "Неизвестное поле файла.")
+                raise BadRequest(HTTPStatus.BAD_REQUEST, t("error.unknown_file_field"))
             uploads.append((view, filename, data))
         values = {"taken_on": fields.get("taken_on"), "notes": fields.get("notes")}
         try:
@@ -447,13 +478,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
         except DatabaseUnavailable:
             row = None
         if row is None:
-            self._send(HTTPStatus.NOT_FOUND, "Фото не найдено.\n", "text/plain; charset=utf-8", head_only=head_only)
+            self._send(HTTPStatus.NOT_FOUND, t("photos.not_found") + "\n", "text/plain; charset=utf-8",
+                       head_only=head_only)
             return
         base = Path(self.server.photos_dir).resolve()
         target = (base / Path(*row["file_path"].split("/"))).resolve()
         content_type = PHOTO_TYPES.get(target.suffix.lower()) or mimetypes.guess_type(target.name)[0]
         if base not in target.parents or not target.is_file() or content_type not in PHOTO_TYPES.values():
-            self._send(HTTPStatus.NOT_FOUND, "Файл фото не найден.\n", "text/plain; charset=utf-8",
+            self._send(HTTPStatus.NOT_FOUND, t("photos.file_not_found") + "\n", "text/plain; charset=utf-8",
                        head_only=head_only)
             return
         self._send(HTTPStatus.OK, target.read_bytes(), content_type, head_only=head_only)
@@ -468,10 +500,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         target = photo_trash.trash_file(dict(row), self.server.trash_dir) if row is not None else None
         content_type = PHOTO_TYPES.get(target.suffix.lower()) if target is not None else None
         if content_type is None:
-            self._send(HTTPStatus.NOT_FOUND, "Файл фото не найден.\n", "text/plain; charset=utf-8",
+            self._send(HTTPStatus.NOT_FOUND, t("photos.file_not_found") + "\n", "text/plain; charset=utf-8",
                        head_only=head_only)
             return
         self._send(HTTPStatus.OK, target.read_bytes(), content_type, head_only=head_only)
+
+
+def _local_path(value):
+    """Адрес возврата после переключения языка: только путь этой панели, иначе главная."""
+    value = value or ""
+    if not value.startswith("/") or value.startswith("//") or "\\" in value or any(c in value for c in "\r\n"):
+        return "/"
+    return value
 
 
 def _int_or_none(value):

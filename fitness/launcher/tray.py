@@ -12,6 +12,8 @@ import threading
 from ctypes import wintypes
 from pathlib import Path
 
+from ..i18n import t
+from . import config
 from . import supervisor as sv
 
 ICON_DIR = Path(__file__).resolve().parent / "icons"
@@ -96,10 +98,11 @@ def message_box(text, title="FITNESS Tracker", error=False):
                        MB_OK | MB_SETFOREGROUND | MB_TOPMOST | (MB_ICONERROR if error else MB_ICONINFORMATION))
 
 
+# Команда меню -> ключ подписи (fitness/locales). Подписи берутся на языке из настроек при каждом открытии меню.
 MENU = [
-    (1, "Открыть панель"), (2, "Состояние…"), (3, "Открыть журнал"), (4, "Открыть папку данных"), None,
-    (5, "Импортировать сейчас"), (6, "Проверить MCP"), (7, "Перезапустить туннель"), (8, "Перезапустить всё"), None,
-    (9, "Выход"),
+    (1, "tray.open_dashboard"), (2, "tray.status"), (3, "tray.open_log"), (4, "tray.open_data"), None,
+    (5, "tray.import_now"), (6, "tray.check_mcp"), (7, "tray.restart_tunnel"), (8, "tray.restart_all"), None,
+    (9, "tray.exit"),
 ]
 
 
@@ -133,11 +136,18 @@ class TrayApp:
         data.uFlags = flags
         return data
 
+    def _lang(self):
+        """Язык из настроек (data\\launcher.json) — читается заново, чтобы переключение в панели применилось."""
+        return config.read_language(self.sup.db_path)
+
     def _tooltip(self):
+        lang = self._lang()
         tunnel, importer = self.sup.tunnel.status(), self.sup.importer.status()
         check = self.sup.mcp_check
-        mcp = "MCP: проверка…" if not check else ("MCP: отвечает" if check.get("ok") else "MCP: ОШИБКА")
-        text = f"FITNESS Tracker\nТуннель: {tunnel['state_text']}\nИмпорт: {importer['state_text']}\n{mcp}"
+        mcp = t("tray.mcp_checking" if not check else ("tray.mcp_ok" if check.get("ok") else "tray.mcp_error"),
+                lang=lang)
+        text = (f"FITNESS Tracker\n{t('tray.tunnel', lang=lang)}: {sv.state_text(tunnel, lang)}\n"
+                f"{t('tray.import', lang=lang)}: {sv.state_text(importer, lang)}\n{mcp}")
         return text[:127]
 
     def _update_icon(self, action=NIM_MODIFY):
@@ -173,11 +183,12 @@ class TrayApp:
     # меню и действия
     def _menu(self):
         menu = self.user32.CreatePopupMenu()
+        lang = self._lang()
         for item in MENU:
             if item is None:
                 self.user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
             else:
-                self.user32.AppendMenuW(menu, MF_STRING, item[0], item[1])
+                self.user32.AppendMenuW(menu, MF_STRING, item[0], t(item[1], lang=lang))
         point = wintypes.POINT()
         self.user32.GetCursorPos(ctypes.byref(point))
         self.user32.SetForegroundWindow(self.hwnd)
@@ -196,23 +207,28 @@ class TrayApp:
             func(*args)
         except Exception as exc:                          # noqa: BLE001
             self.sup.log.exception("Ошибка действия меню")
-            message_box(f"Ошибка: {exc}", error=True)
+            message_box(t("tray.action_error", lang=self._lang(), error=exc), error=True)
 
     def _show_status(self):
-        message_box("\n".join(sv.describe_status(self.sup.status())), "FITNESS Tracker — состояние")
+        lang = self._lang()
+        message_box("\n".join(sv.describe_status(self.sup.status(), lang)), t("tray.status_title", lang=lang))
 
     def _open_dashboard(self):
         if not self.sup.dashboard.open():
-            message_box(f"Панель не запустилась: {self.sup.dashboard.message}", error=True)
+            message_box(t("tray.dashboard_failed", lang=self._lang(), message=self.sup.dashboard.message),
+                        error=True)
 
     def _check_mcp(self):
         result = self.sup.check_mcp()
+        lang = self._lang()
+        title = t("tray.mcp_title", lang=lang)
         if result.get("ok"):
-            message_box(f"server.py отвечает: версия {result['server_version']}, инструментов {result['tools']}, "
-                        f"база {'в порядке' if result['database_ok'] else 'недоступна: ' + result.get('warning', '')}.",
-                        "FITNESS Tracker — проверка MCP")
+            database = (t("status.db_ok", lang=lang) if result["database_ok"]
+                        else t("status.db_unavailable", lang=lang, warning=result.get("warning", "")))
+            message_box(t("tray.mcp_result_ok", lang=lang, version=result["server_version"], tools=result["tools"],
+                          database=database), title)
         else:
-            message_box(f"server.py не отвечает: {result.get('error')}", "FITNESS Tracker — проверка MCP", error=True)
+            message_box(t("tray.mcp_result_failed", lang=lang, error=result.get("error")), title, error=True)
 
     def _run(self, command):
         paths = self.sup.paths

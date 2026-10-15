@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest import mock
 
-from fitness import alcohol, db, measurements, notes, nutrition, workouts
+from fitness import alcohol, db, i18n, measurements, notes, nutrition, workouts
 from fitness.web import app
 from fitness.web.readonly import DatabaseUnavailable, connect_readonly
 
@@ -35,6 +35,8 @@ def file_state(path):
 
 
 class DashboardTestCase(unittest.TestCase):
+    ui_language = "ru"      # None — язык из настроек, как у пользователя
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="fitness-web-test-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
@@ -43,6 +45,11 @@ class DashboardTestCase(unittest.TestCase):
         quiet = mock.patch.object(app, "log")   # журнал запросов не засоряет вывод тестов
         quiet.start()
         self.addCleanup(quiet.stop)
+        # Проверки этих тестов написаны по русским текстам: панель и прямые вызовы страниц — на русском.
+        # Английский язык по умолчанию и переключение проверяет tests/test_i18n.py (там ui_language = None).
+        if self.ui_language:
+            self.enterContext(mock.patch.object(app.config, "read_language", return_value=self.ui_language))
+            self.enterContext(i18n.use_language(self.ui_language))
 
     def fill(self):
         conn = db.open_database(self.db_path)

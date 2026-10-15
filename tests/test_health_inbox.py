@@ -20,6 +20,7 @@ from unittest import mock
 
 from fitness import db, health_format, health_import, health_inbox, health_status, tools
 from fitness.errors import ImportFileError, ImportOrderError, TrackerError
+from fitness.launcher import config
 from fitness.web import app as web_app
 from tests import health_samples as hs
 
@@ -552,10 +553,14 @@ class ToolsAndDashboardTest(InboxTestCase):
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         html = urllib.request.urlopen(f"http://127.0.0.1:{server.port}/sync").read().decode("utf-8")
-        self.assertIn("Требует внимания", html)
+        self.assertIn("Needs attention", html)          # язык по умолчанию — английский
         self.assertIn("bad.json", html)
-        self.assertIn("Последние данные в базе", html)
+        self.assertIn("Latest data in the database", html)
         self.assertIn('href="/sync"', html)
+        config.save_language("ru", self.db_path)
+        html = urllib.request.urlopen(f"http://127.0.0.1:{server.port}/sync").read().decode("utf-8")
+        self.assertIn("Требует внимания", html)
+        self.assertIn("Последние данные в базе", html)
 
     def test_dashboard_sync_page_without_database(self):
         server = web_app.make_server(port=0, db_path=self.tmp / "missing" / "x.db")
