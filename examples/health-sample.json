@@ -23,7 +23,7 @@
       "end": "2026-10-10T00:10:00Z",
       "start_offset_min": 180,
       "end_offset_min": 180,
-      "count": 511,
+      "count": 420,
       "last_modified": "2026-10-10T17:00:00Z"
     },
     {
@@ -33,7 +33,7 @@
       "end": "2026-10-10T00:20:00Z",
       "start_offset_min": 180,
       "end_offset_min": 180,
-      "count": 876,
+      "count": 730,
       "last_modified": "2026-10-10T17:00:00Z"
     },
     {
@@ -43,7 +43,7 @@
       "end": "2026-10-10T16:40:00Z",
       "start_offset_min": 180,
       "end_offset_min": 180,
-      "count": 6,
+      "count": 9,
       "last_modified": "2026-10-10T17:00:00Z"
     }
   ],
@@ -58,7 +58,7 @@
       "samples": [
         {
           "time": "2026-10-10T19:10:00Z",
-          "bpm": 66
+          "bpm": 61
         }
       ],
       "last_modified": "2026-10-10T17:00:00Z"
@@ -73,7 +73,7 @@
       "samples": [
         {
           "time": "2026-10-10T19:05:00Z",
-          "bpm": 69
+          "bpm": 64
         }
       ],
       "last_modified": "2026-10-10T17:00:00Z"
@@ -88,7 +88,7 @@
       "samples": [
         {
           "time": "2026-10-10T19:00:00Z",
-          "bpm": 73
+          "bpm": 78
         }
       ],
       "last_modified": "2026-10-10T17:00:00Z"
@@ -98,7 +98,7 @@
     {
       "hc_id": "sleep-1",
       "source": "s1",
-      "start": "2026-10-10T07:05:00Z",
+      "start": "2026-10-10T07:02:00Z",
       "end": "2026-10-10T15:20:00Z",
       "start_offset_min": 180,
       "end_offset_min": 180,
@@ -107,7 +107,7 @@
       "stages": [
         {
           "stage": "light",
-          "start": "2026-10-10T07:05:00Z",
+          "start": "2026-10-10T07:02:00Z",
           "end": "2026-10-10T07:30:00Z"
         },
         {

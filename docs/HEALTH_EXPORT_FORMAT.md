@@ -33,22 +33,22 @@
     {"hc_id": "…", "source": "s1",
      "start": "2026-10-10T00:00:00Z", "end": "2026-10-10T00:10:00Z",
      "start_offset_min": 180, "end_offset_min": 180,
-     "count": 511, "last_modified": "2026-10-10T17:00:00.5Z",
+     "count": 420, "last_modified": "2026-10-10T17:00:00.5Z",
      "client_record_id": null, "client_record_version": null}
   ],
   "heart_rate": [
     {"hc_id": "…", "source": "s1",
      "start": "2026-10-10T19:10:00Z", "end": "2026-10-10T19:11:00Z",
      "start_offset_min": 180, "end_offset_min": 180,
-     "samples": [{"time": "2026-10-10T19:10:00.25Z", "bpm": 66}],
+     "samples": [{"time": "2026-10-10T19:10:00.25Z", "bpm": 61}],
      "last_modified": "2026-10-10T19:12:00Z"}
   ],
   "sleep": [
     {"hc_id": "…", "source": "s1",
-     "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T15:20:00Z",
+     "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T15:20:00Z",
      "start_offset_min": 180, "end_offset_min": 180,
      "title": null, "notes": null, "last_modified": "2026-10-10T16:00:00Z",
-     "stages": [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:30:00Z"}]}
+     "stages": [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:30:00Z"}]}
   ],
   "deleted": ["hc-id-1", "hc-id-2"]
 }

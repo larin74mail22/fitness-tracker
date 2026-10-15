@@ -48,7 +48,7 @@ class RollbackThroughAllowOlderTests(ti.ImportTestCase):
 
     def test_heart_rate_and_sleep_remember_the_seen_time_too(self):
         samples = [{"time": "2026-10-10T19:10:00Z", "bpm": 60}]
-        stages = [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:10:00Z"}]
+        stages = [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:10:00Z"}]
         self.run_import(hs.export(1, heart_rate=[hs.heart("H", samples=samples, modified="2026-10-10T19:12:00Z")],
                                   sleep_sessions=[hs.sleep("Z", stages=stages, modified="2026-10-10T08:00:00Z")]))
         self.run_import(hs.export(3, heart_rate=[hs.heart("H", samples=samples, modified="2026-10-10T20:00:00Z")],
@@ -191,7 +191,7 @@ class PendingDeletionTests(ti.ImportTestCase):
     def test_heart_rate_and_sleep_are_covered_too(self):
         same = "2026-10-10T12:00:00Z"
         self.run_import(hs.export(1, deleted=["H", "Z"], exported_at=same))
-        stages = [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:10:00Z"}]
+        stages = [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:10:00Z"}]
         report = self.run_import(hs.export(2, heart_rate=[hs.heart("H", samples=[{"time": "2026-10-10T19:10:00Z", "bpm": 60}])],
                                            sleep_sessions=[hs.sleep("Z", stages=stages)],
                                            exported_at=same))

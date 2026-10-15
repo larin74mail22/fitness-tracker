@@ -134,7 +134,7 @@ class ConstraintTests(TempDbTestCase):
 
     # ---- пульс ----
     def test_heart_rate(self):
-        record = h.add_hr(self.conn, self.source, self.batch, bpms=(66, 69))
+        record = h.add_hr(self.conn, self.source, self.batch, bpms=(61, 64))
         self.assertEqual(self.count("heart_rate_samples"), 2)
         h.add_hr(self.conn, self.source, self.batch, hc_id="instant", end="2026-10-10T19:10:00Z", bpms=())  # start == end допустим
         self.assertRejected(h.add_hr, self.source, self.batch, hc_id="back", end="2026-10-10T19:00:00Z")
@@ -167,12 +167,12 @@ class ConstraintTests(TempDbTestCase):
             "unknown stage name": ("rapid_eye", "2026-10-10T12:00:00Z", "2026-10-10T12:01:00Z"),
             "end == start": ("light", "2026-10-10T12:00:00Z", "2026-10-10T12:00:00Z"),
             "end < start": ("light", "2026-10-10T12:05:00Z", "2026-10-10T12:00:00Z"),
-            "same start twice": ("light", "2026-10-10T07:05:00Z", "2026-10-10T07:06:00Z"),
+            "same start twice": ("light", "2026-10-10T07:02:00Z", "2026-10-10T07:06:00Z"),
         }.items():
             with self.subTest(label), self.assertRaises(sqlite3.IntegrityError):
                 self.conn.execute("INSERT INTO sleep_stages (session_id, stage, start_utc, end_utc) VALUES (?, ?, ?, ?)",
                                   (session, sql_args[0], h.canon(sql_args[1]), h.canon(sql_args[2])))
-        h.add_sleep(self.conn, self.source, self.batch, hc_id="zero-length", end="2026-10-10T07:05:00Z")
+        h.add_sleep(self.conn, self.source, self.batch, hc_id="zero-length", end="2026-10-10T07:02:00Z")
         self.assertRejected(h.add_sleep, self.source, self.batch, hc_id="negative", end="2026-10-10T06:00:00Z")
         self.assertRejected(h.add_sleep, self.source, self.batch)                           # тот же hc_id
         self.conn.execute("DELETE FROM sleep_sessions WHERE id = ?", (session,))
@@ -257,9 +257,9 @@ class ViewTests(TempDbTestCase):
 
     def test_daily_steps(self):
         s, b = self.source, self.batch
-        h.add_step(self.conn, s, b, hc_id="1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z", count=511)
-        h.add_step(self.conn, s, b, hc_id="2", start="2026-10-10T00:10:00Z", end="2026-10-10T00:20:00Z", count=876)
-        h.add_step(self.conn, s, b, hc_id="3", start="2026-10-10T16:30:00Z", end="2026-10-10T16:40:00Z", count=6)
+        h.add_step(self.conn, s, b, hc_id="1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z", count=420)
+        h.add_step(self.conn, s, b, hc_id="2", start="2026-10-10T00:10:00Z", end="2026-10-10T00:20:00Z", count=730)
+        h.add_step(self.conn, s, b, hc_id="3", start="2026-10-10T16:30:00Z", end="2026-10-10T16:40:00Z", count=9)
         h.add_step(self.conn, s, b, hc_id="gone", start="2026-10-10T01:00:00Z", end="2026-10-10T01:10:00Z",
                    count=417, deleted_at="2026-10-10T18:00:00Z")
         h.add_step(self.conn, s, b, hc_id="4", start="2026-10-09T22:00:00Z", end="2026-10-09T22:10:00Z", count=40,
@@ -269,7 +269,7 @@ class ViewTests(TempDbTestCase):
 
         rows = {(r["local_date"], r["source_id"]): r for r in self.conn.execute("SELECT * FROM v_daily_steps")}
         main = rows[("2026-10-10", s)]
-        self.assertEqual((main["steps"], main["intervals"]), (511 + 876 + 6, 3))               # удалённый не учтён
+        self.assertEqual((main["steps"], main["intervals"]), (420 + 730 + 9, 3))               # удалённый не учтён
         self.assertEqual(main["last_end_utc"], h.canon("2026-10-10T16:40:00Z"))
         self.assertEqual(rows[("2026-10-09", s)]["steps"], 40)
         self.assertEqual(rows[("2026-10-10", other)]["steps"], 100)                               # источники раздельно
@@ -277,19 +277,19 @@ class ViewTests(TempDbTestCase):
 
         self.conn.execute("UPDATE step_intervals SET deleted_at = NULL WHERE hc_id = 'gone'")   # возврат записи
         self.assertEqual(self.one("SELECT steps FROM v_daily_steps WHERE local_date = '2026-10-10' AND source_id = ?",
-                                  s)["steps"], 511 + 876 + 6 + 417)
+                                  s)["steps"], 420 + 730 + 9 + 417)
 
     def test_heart_rate_views(self):
         s, b = self.source, self.batch
-        h.add_hr(self.conn, s, b, hc_id="a", bpms=(66,))
-        h.add_hr(self.conn, s, b, hc_id="b", start="2026-10-10T19:05:00Z", end="2026-10-10T19:06:00Z", bpms=(69,))
-        h.add_hr(self.conn, s, b, hc_id="c", start="2026-10-10T19:00:00Z", end="2026-10-10T19:01:00Z", bpms=(73,))
+        h.add_hr(self.conn, s, b, hc_id="a", bpms=(61,))
+        h.add_hr(self.conn, s, b, hc_id="b", start="2026-10-10T19:05:00Z", end="2026-10-10T19:06:00Z", bpms=(64,))
+        h.add_hr(self.conn, s, b, hc_id="c", start="2026-10-10T19:00:00Z", end="2026-10-10T19:01:00Z", bpms=(78,))
         h.add_hr(self.conn, s, b, hc_id="d", start="2026-10-10T19:20:00Z", end="2026-10-10T19:20:00Z", bpms=())
         h.add_hr(self.conn, s, b, hc_id="gone", bpms=(250,), deleted_at="2026-10-10T20:00:00Z",
                  start="2026-10-10T18:00:00Z", end="2026-10-10T18:01:00Z")
         day = self.one("SELECT * FROM v_daily_heart_rate WHERE local_date = '2026-10-10'")
-        self.assertEqual((day["min_bpm"], day["max_bpm"], day["samples"]), (66, 73, 3))
-        self.assertAlmostEqual(day["avg_bpm"], 69.3)
+        self.assertEqual((day["min_bpm"], day["max_bpm"], day["samples"]), (61, 78, 3))
+        self.assertAlmostEqual(day["avg_bpm"], 67.7)
         records = {r["hc_id"]: r for r in self.conn.execute("SELECT * FROM v_heart_rate_records")}
         self.assertEqual(records["a"]["duration_sec"], 60)
         self.assertEqual(records["d"]["duration_sec"], 0)
@@ -301,11 +301,11 @@ class ViewTests(TempDbTestCase):
         row = self.one("SELECT * FROM v_daily_sleep")
         self.assertEqual(row["local_date"], "2026-10-10")
         self.assertEqual(row["sessions"], 1)
-        self.assertEqual(row["session_min"], 495)                    # 07:05–15:20
-        self.assertEqual(row["light_min"], 25 + 20 + 28 + 32)
+        self.assertEqual(row["session_min"], 498)                    # 07:02–15:20
+        self.assertEqual(row["light_min"], 28 + 20 + 28 + 32)
         self.assertEqual(row["deep_min"], 20)
         self.assertEqual(row["awake_min"], 2 + 3 + 5)
-        self.assertEqual(row["asleep_min"], 105 + 20)
+        self.assertEqual(row["asleep_min"], 108 + 20)
         self.assertIsNone(row["rem_min"])                            # стадии REM не было — неизвестно, а не 0
         self.conn.execute("UPDATE sleep_sessions SET deleted_at = '2026-10-10T20:00:00Z' WHERE id = ?", (session,))
         self.assertIsNone(self.one("SELECT * FROM v_daily_sleep"))
@@ -313,7 +313,7 @@ class ViewTests(TempDbTestCase):
     def test_sleep_without_stages_has_unknown_minutes(self):
         h.add_sleep(self.conn, self.source, self.batch)
         row = self.one("SELECT * FROM v_daily_sleep")
-        self.assertEqual(row["session_min"], 495)
+        self.assertEqual(row["session_min"], 498)
         self.assertIsNone(row["asleep_min"])
         self.assertIsNone(row["awake_min"])
 

@@ -148,12 +148,12 @@ class MigrationFromV2Tests(h.Pinned003TestCase):
             self.assertNotEqual(self.conn.execute(f"SELECT updated_at FROM {table} WHERE id = 1").fetchone()[0],
                                 "2000-01-01T00:00:00Z", table)
         steps = self.conn.execute("SELECT * FROM v_daily_steps").fetchall()
-        self.assertEqual([(r["steps"], r["intervals"]) for r in steps], [(511, 1)])          # удалённое окно скрыто
+        self.assertEqual([(r["steps"], r["intervals"]) for r in steps], [(420, 1)])          # удалённое окно скрыто
         self.assertEqual(steps[0]["last_end_utc"], "2026-10-10T00:10:00.000000000Z")
         hr = self.conn.execute("SELECT * FROM v_daily_heart_rate").fetchone()
-        self.assertEqual((hr["min_bpm"], hr["max_bpm"], hr["samples"]), (66, 70, 3))
+        self.assertEqual((hr["min_bpm"], hr["max_bpm"], hr["samples"]), (61, 70, 3))
         sleep = self.conn.execute("SELECT * FROM v_daily_sleep").fetchone()
-        self.assertEqual((sleep["sessions"], sleep["session_min"]), (1, 495))                 # удалённая сессия скрыта
+        self.assertEqual((sleep["sessions"], sleep["session_min"]), (1, 498))                 # удалённая сессия скрыта
         self.assertEqual(sleep["deep_min"], 20)
         status = {r["record_type"]: r for r in self.conn.execute("SELECT * FROM v_health_sync_status")}
         self.assertEqual(status["steps"]["last_record_end_utc"], "2026-10-10T00:10:00.000000000Z")
@@ -235,7 +235,7 @@ class TimeFormatTests(h.IsolatedTestCase):
 
     def test_views_accept_fractions(self):
         h.add_hr(self.conn, self.source, self.batch, start="2026-10-10T19:10:00.250000000Z",
-                 end="2026-10-10T19:11:00.250000000Z", bpms=(66,))
+                 end="2026-10-10T19:11:00.250000000Z", bpms=(61,))
         row = self.conn.execute("SELECT * FROM v_heart_rate_records").fetchone()
         self.assertEqual(row["duration_sec"], 60)
 

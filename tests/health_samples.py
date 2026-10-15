@@ -7,7 +7,7 @@ DEFAULT_MODIFIED = "2026-10-10T17:00:00Z"
 
 # Синтетические стадии сна (выдуманные).
 SCREEN_STAGES = [
-    {"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:30:00Z"},
+    {"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:30:00Z"},
     {"stage": "deep", "start": "2026-10-10T07:30:00Z", "end": "2026-10-10T07:50:00Z"},
     {"stage": "light", "start": "2026-10-10T07:50:00Z", "end": "2026-10-10T08:10:00Z"},
     {"stage": "awake", "start": "2026-10-10T08:10:00Z", "end": "2026-10-10T08:12:00Z"},
@@ -22,7 +22,7 @@ def source(sid="s1", package="app.example.zepp", manufacturer=None, model=None, 
     return {"id": sid, "package": package, "device": {"manufacturer": manufacturer, "model": model, "type": type_}}
 
 
-def step(hc="step-1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z", count=511, src="s1",
+def step(hc="step-1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z", count=420, src="s1",
          modified=DEFAULT_MODIFIED, offset=180, **extra):
     rec = {"hc_id": hc, "source": src, "start": start, "end": end, "start_offset_min": offset,
            "end_offset_min": offset, "count": count, "last_modified": modified}
@@ -30,7 +30,7 @@ def step(hc="step-1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z", 
     return rec
 
 
-def heart(hc="hr-1", start="2026-10-10T19:10:00Z", end="2026-10-10T19:11:00Z", bpms=(66,), src="s1",
+def heart(hc="hr-1", start="2026-10-10T19:10:00Z", end="2026-10-10T19:11:00Z", bpms=(61,), src="s1",
           modified=DEFAULT_MODIFIED, offset=180, samples=None, **extra):
     if samples is None:
         samples = [{"time": start, "bpm": b} if i == 0 else {"time": f"2026-10-10T19:1{i}:30Z", "bpm": b}
@@ -41,7 +41,7 @@ def heart(hc="hr-1", start="2026-10-10T19:10:00Z", end="2026-10-10T19:11:00Z", b
     return rec
 
 
-def sleep(hc="sleep-1", start="2026-10-10T07:05:00Z", end="2026-10-10T15:20:00Z", stages=None, src="s1",
+def sleep(hc="sleep-1", start="2026-10-10T07:02:00Z", end="2026-10-10T15:20:00Z", stages=None, src="s1",
           modified=DEFAULT_MODIFIED, offset=180, title=None, notes=None, **extra):
     rec = {"hc_id": hc, "source": src, "start": start, "end": end, "start_offset_min": offset,
            "end_offset_min": offset, "title": title, "notes": notes,
@@ -68,13 +68,13 @@ def export(sequence=1, steps=(), heart_rate=(), sleep_sessions=(), deleted=(), p
 
 
 def day_file(sequence=1, phone="phone-01", **overrides):
-    """Один синтетический «день»: шаги окнами по 10 минут, пульс по минуте, сон 07:05–15:20."""
-    steps = [step("step-1", "2026-10-10T00:00:00Z", "2026-10-10T00:10:00Z", 511),
-             step("step-2", "2026-10-10T00:10:00Z", "2026-10-10T00:20:00Z", 876),
-             step("step-3", "2026-10-10T16:30:00Z", "2026-10-10T16:40:00Z", 6)]
-    hearts = [heart("hr-1", "2026-10-10T19:10:00Z", "2026-10-10T19:11:00Z", (66,)),
-              heart("hr-2", "2026-10-10T19:05:00Z", "2026-10-10T19:06:00Z", (69,)),
-              heart("hr-3", "2026-10-10T19:00:00Z", "2026-10-10T19:01:00Z", (73,))]
+    """Один синтетический «день»: шаги окнами по 10 минут, пульс по минуте, сон 07:02–15:20."""
+    steps = [step("step-1", "2026-10-10T00:00:00Z", "2026-10-10T00:10:00Z", 420),
+             step("step-2", "2026-10-10T00:10:00Z", "2026-10-10T00:20:00Z", 730),
+             step("step-3", "2026-10-10T16:30:00Z", "2026-10-10T16:40:00Z", 9)]
+    hearts = [heart("hr-1", "2026-10-10T19:10:00Z", "2026-10-10T19:11:00Z", (61,)),
+              heart("hr-2", "2026-10-10T19:05:00Z", "2026-10-10T19:06:00Z", (64,)),
+              heart("hr-3", "2026-10-10T19:00:00Z", "2026-10-10T19:01:00Z", (78,))]
     doc = export(sequence, steps, hearts, [sleep("sleep-1")], phone=phone)
     doc.update(overrides)
     return doc

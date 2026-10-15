@@ -55,12 +55,12 @@ class TimestampTests(unittest.TestCase):
 
     def test_fractions_are_padded_to_nine_digits(self):
         cases = {
-            "2026-10-10T07:05:00Z": "2026-10-10T07:05:00.000000000Z",
-            "2026-10-10T07:05:00.5Z": "2026-10-10T07:05:00.500000000Z",
-            "2026-10-10T07:05:00.123Z": "2026-10-10T07:05:00.123000000Z",
-            "2026-10-10T07:05:00.123456Z": "2026-10-10T07:05:00.123456000Z",
-            "2026-10-10T07:05:00.123456789Z": "2026-10-10T07:05:00.123456789Z",
-            "2026-10-10T07:05:00.000000001Z": "2026-10-10T07:05:00.000000001Z",
+            "2026-10-10T07:02:00Z": "2026-10-10T07:02:00.000000000Z",
+            "2026-10-10T07:02:00.5Z": "2026-10-10T07:02:00.500000000Z",
+            "2026-10-10T07:02:00.123Z": "2026-10-10T07:02:00.123000000Z",
+            "2026-10-10T07:02:00.123456Z": "2026-10-10T07:02:00.123456000Z",
+            "2026-10-10T07:02:00.123456789Z": "2026-10-10T07:02:00.123456789Z",
+            "2026-10-10T07:02:00.000000001Z": "2026-10-10T07:02:00.000000001Z",
         }
         for given, expected in cases.items():
             with self.subTest(given=given):
@@ -69,23 +69,23 @@ class TimestampTests(unittest.TestCase):
                 self.assertFalse(problems)
 
     def test_same_instant_in_different_spellings_is_equal(self):
-        a, _ = self.one("2026-10-10T07:05:00Z")
-        b, _ = self.one("2026-10-10T07:05:00.000Z")
-        c, _ = self.one("2026-10-10T07:05:00.000000000Z")
+        a, _ = self.one("2026-10-10T07:02:00Z")
+        b, _ = self.one("2026-10-10T07:02:00.000Z")
+        c, _ = self.one("2026-10-10T07:02:00.000000000Z")
         self.assertEqual(a, b)
         self.assertEqual(b, c)
 
     def test_canonical_strings_sort_chronologically(self):
-        raw = ["2026-10-10T07:05:00Z", "2026-10-10T07:05:00.000000001Z", "2026-10-10T07:05:00.1Z",
-               "2026-10-10T07:05:00.5Z", "2026-10-10T07:05:01Z", "2026-10-10T07:05:01.000000007Z"]
+        raw = ["2026-10-10T07:02:00Z", "2026-10-10T07:02:00.000000001Z", "2026-10-10T07:02:00.1Z",
+               "2026-10-10T07:02:00.5Z", "2026-10-10T07:02:01Z", "2026-10-10T07:02:01.000000007Z"]
         canon = [self.one(v)[0] for v in raw]
         self.assertEqual(sorted(canon), canon)
 
     def test_rejected_forms(self):
-        bad = ["2026-10-10 07:05:00Z", "2026-10-10T07:05:00", "2026-10-10T07:05:00+03:00", "2026-10-10T07:05:00z",
-               "2026-10-10T07:05:00.Z", "2026-10-10T07:05:00.1234567890Z", "2026-10-10T07:05Z", "2026-13-01T00:00:00Z",
-               "2026-02-30T00:00:00Z", "2026-10-10T24:00:00Z", "2026-10-10T07:05:60Z", "1969-12-31T23:59:59Z",
-               "2101-01-01T00:00:00Z", "２０２６-10-10T07:05:00Z", "", None, 1760083500, True, ["x"]]
+        bad = ["2026-10-10 07:02:00Z", "2026-10-10T07:02:00", "2026-10-10T07:02:00+03:00", "2026-10-10T07:02:00z",
+               "2026-10-10T07:02:00.Z", "2026-10-10T07:02:00.1234567890Z", "2026-10-10T07:02Z", "2026-13-01T00:00:00Z",
+               "2026-02-30T00:00:00Z", "2026-10-10T24:00:00Z", "2026-10-10T07:02:60Z", "1969-12-31T23:59:59Z",
+               "2101-01-01T00:00:00Z", "２０２６-10-10T07:02:00Z", "", None, 1760083500, True, ["x"]]
         for value in bad:
             with self.subTest(value=value):
                 result, problems = self.one(value)
@@ -272,7 +272,7 @@ class HeartRateTests(unittest.TestCase):
         rec = hs.heart()
         rec.pop("samples")
         self.assertTrue(problems_of(hs.export(heart_rate=[rec])).problems)
-        for bpm in (0, 301, -1, 66.5, "66", True, None):
+        for bpm in (0, 301, -1, 61.5, "61", True, None):
             with self.subTest(bpm=bpm):
                 problems_of(hs.export(heart_rate=[hs.heart(samples=[{"time": "2026-10-10T19:10:00Z", "bpm": bpm}])]))
         for bpm in (1, 300):
@@ -306,11 +306,11 @@ class SleepTests(unittest.TestCase):
     def test_stage_problems(self):
         base = hs.SCREEN_STAGES
         cases = {
-            "unknown name": [{"stage": "rapid", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:10:00Z"}],
-            "end equals start": [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:05:00Z"}],
-            "end before start": [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:00:00Z"}],
+            "unknown name": [{"stage": "rapid", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:10:00Z"}],
+            "end equals start": [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:02:00Z"}],
+            "end before start": [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:00:00Z"}],
             "duplicate start": [dict(base[0]), dict(base[0], stage="deep")],
-            "missing field": [{"stage": "light", "start": "2026-10-10T07:05:00Z"}],
+            "missing field": [{"stage": "light", "start": "2026-10-10T07:02:00Z"}],
             "unknown field": [dict(base[0], color="blue")],
             "not object": ["light"],
         }
@@ -330,14 +330,14 @@ class SleepTests(unittest.TestCase):
         self.assertEqual(parse(hs.export(sleep_sessions=[hs.sleep(stages=[])])).records["sleep"][0]["stages"], [])
 
     def test_overlapping_or_outside_stages_warn(self):
-        stages = [{"stage": "light", "start": "2026-10-10T07:05:00Z", "end": "2026-10-10T07:30:00Z"},
+        stages = [{"stage": "light", "start": "2026-10-10T07:02:00Z", "end": "2026-10-10T07:30:00Z"},
                   {"stage": "deep", "start": "2026-10-10T07:20:00Z", "end": "2026-10-10T07:40:00Z"}]
         self.assertTrue(parse(hs.export(sleep_sessions=[hs.sleep(stages=stages)])).warnings)
         stages = [{"stage": "light", "start": "2026-10-10T06:00:00Z", "end": "2026-10-10T07:10:00Z"}]
         self.assertTrue(parse(hs.export(sleep_sessions=[hs.sleep(stages=stages)])).warnings)
 
     def test_equal_start_and_end_allowed_for_session(self):
-        parse(hs.export(sleep_sessions=[hs.sleep(start="2026-10-10T07:05:00Z", end="2026-10-10T07:05:00Z", stages=[])]))
+        parse(hs.export(sleep_sessions=[hs.sleep(start="2026-10-10T07:02:00Z", end="2026-10-10T07:02:00Z", stages=[])]))
 
     def test_text_limits(self):
         problems_of(hs.export(sleep_sessions=[hs.sleep(title="x" * 5000)]))

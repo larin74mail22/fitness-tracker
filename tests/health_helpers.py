@@ -16,7 +16,7 @@ from fitness import alcohol, db, measurements, notes, nutrition, workouts
 REAL_MIGRATIONS = db.MIGRATIONS_DIR
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 HASH = "0" * 64
-TS = "2026-10-10T07:05:00Z"
+TS = "2026-10-10T07:02:00Z"
 
 
 def canon(value):
@@ -141,7 +141,7 @@ def add_batch(conn, sha="a" * 64, phone="phone-1", seq=1, status="ok", exported=
 
 
 def add_step(conn, source, batch, hc_id="step-1", start="2026-10-10T00:00:00Z", end="2026-10-10T00:10:00Z",
-             count=511, local_date="2026-10-10", deleted_at=None, **overrides):
+             count=420, local_date="2026-10-10", deleted_at=None, **overrides):
     row = {"source_id": source, "hc_id": hc_id, "start_utc": canon(start), "end_utc": canon(end),
            "local_date": local_date, "count": count, "hc_last_modified": canon(TS), "payload_hash": HASH,
            "batch_id": batch, "deleted_at": deleted_at}
@@ -150,7 +150,7 @@ def add_step(conn, source, batch, hc_id="step-1", start="2026-10-10T00:00:00Z", 
 
 
 def add_hr(conn, source, batch, hc_id="hr-1", start="2026-10-10T19:10:00Z", end="2026-10-10T19:11:00Z",
-           local_date="2026-10-10", deleted_at=None, bpms=(66,), **overrides):
+           local_date="2026-10-10", deleted_at=None, bpms=(61,), **overrides):
     row = {"source_id": source, "hc_id": hc_id, "start_utc": canon(start), "end_utc": canon(end),
            "local_date": local_date, "hc_last_modified": canon(TS), "payload_hash": HASH, "batch_id": batch,
            "deleted_at": deleted_at}
@@ -162,7 +162,7 @@ def add_hr(conn, source, batch, hc_id="hr-1", start="2026-10-10T19:10:00Z", end=
     return record_id
 
 
-def add_sleep(conn, source, batch, hc_id="sleep-1", start="2026-10-10T07:05:00Z", end="2026-10-10T15:20:00Z",
+def add_sleep(conn, source, batch, hc_id="sleep-1", start="2026-10-10T07:02:00Z", end="2026-10-10T15:20:00Z",
               local_date="2026-10-10", deleted_at=None, stages=(), **overrides):
     row = {"source_id": source, "hc_id": hc_id, "start_utc": canon(start), "end_utc": canon(end),
            "local_date": local_date, "hc_last_modified": canon(TS), "payload_hash": HASH, "batch_id": batch,
@@ -182,9 +182,9 @@ def _insert(conn, table, row):
     return conn.execute(f"INSERT INTO {table} ({names}) VALUES ({marks})", list(row.values())).lastrowid
 
 
-# Синтетические стадии сна (выдуманные, 07:05–15:20).
+# Синтетические стадии сна (выдуманные, 07:02–15:20).
 SCREEN_STAGES = [
-    ("light", "2026-10-10T07:05:00Z", "2026-10-10T07:30:00Z"),
+    ("light", "2026-10-10T07:02:00Z", "2026-10-10T07:30:00Z"),
     ("deep", "2026-10-10T07:30:00Z", "2026-10-10T07:50:00Z"),
     ("light", "2026-10-10T07:50:00Z", "2026-10-10T08:10:00Z"),
     ("awake", "2026-10-10T08:10:00Z", "2026-10-10T08:12:00Z"),
@@ -216,17 +216,17 @@ def add_v2_health_rows(conn):
     conn.execute("INSERT INTO import_batch_counts (batch_id, record_type, inserted, updated) VALUES (?, 'steps', 2, 0)", (b1,))
     base = {"source_id": source, "hc_last_modified": TS, "payload_hash": HASH, "local_date": "2026-10-10"}
     _insert(conn, "step_intervals", dict(base, hc_id="s1", start_utc="2026-10-10T00:00:00Z", end_utc="2026-10-10T00:10:00Z",
-                                         count=511, batch_id=b1, client_record_id="c1", client_record_version=3))
+                                         count=420, batch_id=b1, client_record_id="c1", client_record_version=3))
     _insert(conn, "step_intervals", dict(base, hc_id="s2", start_utc="2026-10-10T00:10:00Z", end_utc="2026-10-10T00:20:00Z",
-                                         count=876, batch_id=b2, deleted_at="2026-10-10T20:00:00Z", revision=2))
-    for hc, start, end, bpms in (("h1", "19:10", "19:11", (66, 69)), ("h2", "19:20", "19:20", (70,))):
+                                         count=730, batch_id=b2, deleted_at="2026-10-10T20:00:00Z", revision=2))
+    for hc, start, end, bpms in (("h1", "19:10", "19:11", (61, 64)), ("h2", "19:20", "19:20", (70,))):
         rid = _insert(conn, "heart_rate_records", dict(base, hc_id=hc, start_utc=f"2026-10-10T{start}:00Z",
                                                        end_utc=f"2026-10-10T{end}:00Z", batch_id=b1,
                                                        start_offset_min=180))
         for i, bpm in enumerate(bpms):
             conn.execute("INSERT INTO heart_rate_samples (record_id, time_utc, bpm) VALUES (?, ?, ?)",
                          (rid, f"2026-10-10T{start}:{i:02d}Z", bpm))
-    sid = _insert(conn, "sleep_sessions", dict(base, hc_id="z1", start_utc="2026-10-10T07:05:00Z",
+    sid = _insert(conn, "sleep_sessions", dict(base, hc_id="z1", start_utc="2026-10-10T07:02:00Z",
                                                end_utc="2026-10-10T15:20:00Z", batch_id=b2, title="сон", notes=None))
     for stage, a, z in SCREEN_STAGES:
         conn.execute("INSERT INTO sleep_stages (session_id, stage, start_utc, end_utc) VALUES (?, ?, ?, ?)", (sid, stage, a, z))

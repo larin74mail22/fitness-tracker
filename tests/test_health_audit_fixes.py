@@ -449,7 +449,7 @@ class DryRunStateTests(FixTestCase):
 
 class StrictTimestampTests(unittest.TestCase):
     def test_surrounding_whitespace_and_line_breaks_are_not_accepted(self):
-        base = "2026-10-10T07:05:00Z"
+        base = "2026-10-10T07:02:00Z"
         for bad in (base + "\n", base + "\r\n", base + "\r", "\n" + base, " " + base, base + " ", "\t" + base, base + "\t",
                     " " + base, base + " ", base + "\u0000", "  " + base + "  "):
             with self.subTest(value=repr(bad)):
@@ -460,7 +460,7 @@ class StrictTimestampTests(unittest.TestCase):
         self.assertIsNotNone(health_format.parse_timestamp(base, "t", health_format.Problems()))
 
     def test_every_time_field_of_a_file_is_strict(self):
-        bad = "2026-10-10T07:05:00Z" + "\n"
+        bad = "2026-10-10T07:02:00Z" + "\n"
         docs = {
             "exported_at": hs.export(1, exported_at=bad),
             "start": hs.export(1, steps=[hs.step(start=bad)]),
@@ -507,7 +507,7 @@ class FutureTimeTests(FixTestCase):
 
     def test_future_sample_and_stage_times_are_rejected_too(self):
         self.rejected(heart_rate=[hs.heart(samples=[{"time": "2026-10-13T00:00:00Z", "bpm": 60}])])
-        self.rejected(sleep_sessions=[hs.sleep(stages=[{"stage": "deep", "start": "2026-10-10T07:05:00Z", "end": "2026-10-13T00:00:00Z"}])])
+        self.rejected(sleep_sessions=[hs.sleep(stages=[{"stage": "deep", "start": "2026-10-10T07:02:00Z", "end": "2026-10-13T00:00:00Z"}])])
 
     def test_past_times_and_the_example_day_are_unaffected(self):
         health_format.parse_export(hs.encode(hs.day_file()))

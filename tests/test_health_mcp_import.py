@@ -206,7 +206,7 @@ class ImportScenarioTests(McpImportTestCase):
         self.assertEqual(self.failed(old)["error"], "import_order")
         r = self.imported(old, allow_older=True)
         self.assertEqual(r["skipped"]["stale"], 1)
-        self.assertEqual(self.count("step_intervals", "hc_id = 'step-1' AND count = 511"), 1)   # не откатилось
+        self.assertEqual(self.count("step_intervals", "hc_id = 'step-1' AND count = 420"), 1)   # не откатилось
 
     def test_11_sleep_across_midnight_is_one_session(self):
         r = self.imported(hs.export(1, sleep_sessions=[night()]))

@@ -518,7 +518,7 @@ class ToolsAndDashboardTest(InboxTestCase):
         self.assertEqual(body["run"]["summary"]["imported"], 1)
         error, body = self.call("get_health_summary", {"date_from": "2026-10-10", "date_to": "2026-10-10"})
         self.assertFalse(error, body)
-        self.assertEqual(body["summary"]["steps"]["total"], 511 + 876 + 6)
+        self.assertEqual(body["summary"]["steps"]["total"], 420 + 730 + 9)
         error, body = self.call("get_health_sync_status")
         self.assertFalse(error, body)
         self.assertEqual(body["imported_files"], 1)

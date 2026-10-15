@@ -85,17 +85,17 @@ class FirstImportTests(ImportTestCase):
 
         step = self.rows("SELECT * FROM step_intervals ORDER BY start_utc")[0]
         self.assertEqual((step["start_utc"], step["end_utc"], step["count"]),
-                         ("2026-10-10T00:00:00.000000000Z", "2026-10-10T00:10:00.000000000Z", 511))
+                         ("2026-10-10T00:00:00.000000000Z", "2026-10-10T00:10:00.000000000Z", 420))
         self.assertEqual((step["local_date"], step["revision"], step["batch_id"], step["deleted_at"], step["hc_id"]),
                          ("2026-10-10", 1, 1, None, "step-1"))
         self.assertEqual(step["hc_last_modified"], "2026-10-10T17:00:00.000000000Z")
         self.assertEqual((step["start_offset_min"], step["end_offset_min"]), (180, 180))
 
-        self.assertEqual(self.rows("SELECT steps, intervals FROM v_daily_steps"), [{"steps": 1393, "intervals": 3}])
+        self.assertEqual(self.rows("SELECT steps, intervals FROM v_daily_steps"), [{"steps": 1159, "intervals": 3}])
         hr = self.rows("SELECT * FROM v_daily_heart_rate")[0]
-        self.assertEqual((hr["min_bpm"], hr["max_bpm"], hr["samples"]), (66, 73, 3))
+        self.assertEqual((hr["min_bpm"], hr["max_bpm"], hr["samples"]), (61, 78, 3))
         sleep = self.rows("SELECT * FROM v_daily_sleep")[0]
-        self.assertEqual((sleep["session_min"], sleep["light_min"], sleep["deep_min"], sleep["awake_min"]), (495, 105, 20, 10))
+        self.assertEqual((sleep["session_min"], sleep["light_min"], sleep["deep_min"], sleep["awake_min"]), (498, 108, 20, 10))
         self.assertEqual(self.count("sleep_stages"), 8)
 
         source = self.rows("SELECT * FROM data_sources")
@@ -119,7 +119,7 @@ class FirstImportTests(ImportTestCase):
                  hs.step("c", "2026-10-10T00:20:00Z", "2026-10-10T00:30:00.000Z", count=4)]
         samples = [{"time": "2026-10-10T19:10:00.000000001Z", "bpm": 60}, {"time": "2026-10-10T19:10:00.000000002Z", "bpm": 61},
                    {"time": "2026-10-10T19:10:00.1Z", "bpm": 62}]
-        stages = [{"stage": "deep", "start": "2026-10-10T07:05:00.25Z", "end": "2026-10-10T07:05:00.250000001Z"}]
+        stages = [{"stage": "deep", "start": "2026-10-10T07:02:00.25Z", "end": "2026-10-10T07:02:00.250000001Z"}]
         self.run_import(hs.export(steps=steps, heart_rate=[hs.heart(samples=samples)], sleep_sessions=[hs.sleep(stages=stages)]))
         got = {r["hc_id"]: (r["start_utc"], r["end_utc"]) for r in self.rows("SELECT * FROM step_intervals")}
         self.assertEqual(got["a"], ("2026-10-10T00:00:00.123456789Z", "2026-10-10T00:10:00.500000000Z"))
@@ -130,7 +130,7 @@ class FirstImportTests(ImportTestCase):
         self.assertEqual([r["time_utc"] for r in self.rows("SELECT time_utc FROM heart_rate_samples ORDER BY time_utc")],
                          ["2026-10-10T19:10:00.000000001Z", "2026-10-10T19:10:00.000000002Z", "2026-10-10T19:10:00.100000000Z"])
         stage = self.rows("SELECT * FROM sleep_stages")[0]
-        self.assertEqual((stage["start_utc"], stage["end_utc"]), ("2026-10-10T07:05:00.250000000Z", "2026-10-10T07:05:00.250000001Z"))
+        self.assertEqual((stage["start_utc"], stage["end_utc"]), ("2026-10-10T07:02:00.250000000Z", "2026-10-10T07:02:00.250000001Z"))
 
     def test_same_instant_spelled_differently_is_not_a_change(self):
         self.run_import(hs.export(1, steps=[hs.step("a", "2026-10-10T00:00:00Z", "2026-10-10T00:10:00Z")]))
@@ -310,7 +310,7 @@ class DeletionTests(ImportTestCase):
             self.assertRegex(row["deleted_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
             self.assertEqual(row["batch_id"], 2)
         self.assertEqual((self.count("step_intervals"), self.count("heart_rate_records"), self.count("sleep_sessions")), (3, 3, 1))
-        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 511 + 6)          # удалённое скрыто представлениями
+        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 420 + 9)          # удалённое скрыто представлениями
         self.assertEqual(self.rows("SELECT samples FROM v_daily_heart_rate")[0]["samples"], 2)
         self.assertEqual(self.rows("SELECT * FROM v_daily_sleep"), [])
         self.assertEqual(self.rows("SELECT deleted FROM import_batch_counts WHERE batch_id = 2 AND record_type = 'sleep'"),
@@ -336,12 +336,12 @@ class DeletionTests(ImportTestCase):
     def test_deleted_record_that_reappears_is_restored(self):
         self.run_import(hs.day_file(sequence=1))
         self.run_import(hs.export(2, deleted=["step-1"]))
-        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 876 + 6)
+        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 730 + 9)
         report = self.run_import(hs.export(3, steps=[hs.step("step-1")]))                # тот же состав, что был
         self.assertEqual(report["counts"]["steps"]["updated"], 1)
         row = self.rows("SELECT deleted_at, revision, batch_id FROM step_intervals WHERE hc_id = 'step-1'")[0]
         self.assertEqual((row["deleted_at"], row["revision"], row["batch_id"]), (None, 2, 3))
-        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 1393)
+        self.assertEqual(self.rows("SELECT steps FROM v_daily_steps")[0]["steps"], 1159)
 
     def test_deleted_record_returning_with_older_content_is_not_restored(self):
         # Раньше устаревшая версия воскрешала удалённую запись и понижала hc_last_modified (дефект Д2).
@@ -350,7 +350,7 @@ class DeletionTests(ImportTestCase):
         report = self.run_import(hs.export(3, steps=[hs.step("step-1", count=5, modified="2026-10-10T01:00:00Z")]))
         self.assertEqual((report["counts"]["steps"]["updated"], report["not_applied"]["replay_of_deleted"]), (0, 1))
         row = self.rows("SELECT count, deleted_at, hc_last_modified FROM step_intervals WHERE hc_id = 'step-1'")[0]
-        self.assertEqual((row["count"], row["hc_last_modified"]), (511, "2026-10-10T17:00:00.000000000Z"))
+        self.assertEqual((row["count"], row["hc_last_modified"]), (420, "2026-10-10T17:00:00.000000000Z"))
         self.assertIsNotNone(row["deleted_at"])
 
     def test_deleted_record_returning_with_newer_content_is_updated(self):
@@ -379,8 +379,8 @@ class RollbackTests(ImportTestCase):
         counts = {r["record_type"]: r["rejected"] for r in self.rows("SELECT * FROM import_batch_counts")}
         self.assertEqual(counts, {"steps": 1, "heart_rate": 1, "sleep": 0})
         # исправленный файл с тем же номером принимается: неудача не занимает номер
-        doc["heart_rate"][2]["samples"][0]["bpm"] = 73
-        doc["steps"][1]["count"] = 876
+        doc["heart_rate"][2]["samples"][0]["bpm"] = 78
+        doc["steps"][1]["count"] = 730
         self.assertEqual(self.run_import(doc)["status"], "imported")
         self.assertEqual(self.count("step_intervals"), 3)
 
