@@ -88,8 +88,8 @@ Browser ◀── dashboard.py (127.0.0.1:8765, read-only except photos) ◀─�
 ## Installation
 
 ```
-git clone <repository URL> FITNESS-Tracker
-cd FITNESS-Tracker
+git clone https://github.com/larin74mail22/fitness-tracker.git
+cd fitness-tracker
 python --version            # must be 3.11 or newer
 ```
 
@@ -183,7 +183,7 @@ All files below are in Russian.
 
 ## Author and feedback
 
-Author: Alexey, Telegram [@Alex_showw](https://t.me/Alex_showw).
+Author: Alexey Larin, Telegram [@Alex_showw](https://t.me/Alex_showw).
 
 - **Bug reports and feature requests:** please use GitHub Issues in this repository (primary channel).
   Do not attach real databases, health exports or logs: they contain personal data.

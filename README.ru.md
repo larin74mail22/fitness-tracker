@@ -37,8 +37,8 @@ ChatGPT, он получает те данные, которые запраши�
 ## Установка
 
 ```
-git clone <адрес репозитория> FITNESS-Tracker
-cd FITNESS-Tracker
+git clone https://github.com/larin74mail22/fitness-tracker.git
+cd fitness-tracker
 python --version            # 3.11+
 ```
 
@@ -130,7 +130,7 @@ python -m unittest discover -s tests -t .
 
 ## Автор и обратная связь
 
-Автор: Alexey, Telegram [@Alex_showw](https://t.me/Alex_showw).
+Автор: Алексей Ларин (Alexey Larin), Telegram [@Alex_showw](https://t.me/Alex_showw).
 
 - **Ошибки и предложения** — основной канал: GitHub Issues этого репозитория. Пожалуйста, не прикладывайте
   реальные базы, выгрузки здоровья и журналы: в них личные данные.
