@@ -225,7 +225,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 with readonly_connection(self.server.db_path) as conn:
                     html = render(conn)
             except DatabaseUnavailable as exc:
-                html = pages.unavailable_page(str(exc))
+                html = pages.unavailable_page(exc.localized())
             self._send(HTTPStatus.OK, html, head_only=head_only)
         except Exception as exc:
             log(f"error on {url.path}: {exc!r}\n{traceback.format_exc()}")
@@ -241,7 +241,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             with readonly_connection(self.server.db_path) as conn:
                 return render(conn)
         except DatabaseUnavailable as exc:
-            return pages.unavailable_page(str(exc))
+            return pages.unavailable_page(exc.localized())
 
     def _send_page(self, html, head_only=False, status=HTTPStatus.OK):
         if html is None:
@@ -509,7 +509,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
 def _local_path(value):
     """Адрес возврата после переключения языка: только путь этой панели, иначе главная."""
     value = value or ""
-    if not value.startswith("/") or value.startswith("//") or "\\" in value or any(c in value for c in "\r\n"):
+    if (not value.startswith("/") or value.startswith("//") or "\\" in value
+            or not (value.isascii() and value.isprintable())):
         return "/"
     return value
 

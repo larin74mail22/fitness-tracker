@@ -508,7 +508,8 @@ class CliProcessTest(LauncherTestCase):
         status = self.run_cli("--status")
         self.assertEqual(status.returncode, 0, status.stderr)
         text = status.stdout.decode("utf-8")              # русский текст в UTF-8 без PYTHONIOENCODING
-        self.assertIn("Auto-import: running", text)    # язык по умолчанию — английский
+        # launcher.json теста без ключа language — как у установки старой версии: статус по-русски.
+        self.assertIn("Автоимпорт: работает", text)
         second = self.run_cli("--no-tray")
         self.assertEqual(second.returncode, 0)
         self.assertIn("уже запущен", second.stdout.decode("utf-8"))

@@ -168,6 +168,31 @@ class SettingsTests(unittest.TestCase):
             config.save_language("ru", self.db_path)
         self.assertEqual(self.config_file.read_text(encoding="utf-8"), "{broken")
 
+    def test_existing_install_keeps_russian(self):
+        # launcher.json старой версии (без ключа language): установка работала по-русски и остаётся на русском.
+        old = {key: value for key, value in config.DEFAULTS.items() if key != "language"}
+        old["dashboard_port"] = 8800
+        self.config_file.parent.mkdir(parents=True)
+        self.config_file.write_text(json.dumps(old), encoding="utf-8")
+        self.assertEqual(config.read_language(self.db_path), "ru")
+        self.assertEqual(config.load(self.db_path)["dashboard_port"], 8800)
+        self.assertNotIn("language", json.loads(self.config_file.read_text(encoding="utf-8")), "файл не меняется")
+        config.save_language("en", self.db_path)
+        self.assertEqual(config.read_language(self.db_path), "en")
+        self.assertEqual(json.loads(self.config_file.read_text(encoding="utf-8")), dict(old, language="en"))
+
+    def test_launcher_first_start_writes_english(self):
+        config.load(self.db_path)              # первый запуск launcher создаёт файл настроек
+        self.assertEqual(json.loads(self.config_file.read_text(encoding="utf-8"))["language"], "en")
+        self.assertEqual(config.read_language(self.db_path), "en")
+
+    def test_bom_and_unicode_settings_preserved(self):
+        self.config_file.parent.mkdir(parents=True)
+        original = {"tunnel_client": "C:/Программы/tunnel-client.exe", "import_interval_sec": 45, "language": "en"}
+        self.config_file.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8-sig")
+        config.save_language("ru", self.db_path)
+        self.assertEqual(json.loads(self.config_file.read_text(encoding="utf-8")), dict(original, language="ru"))
+
     def test_unknown_language_rejected_and_bad_value_ignored(self):
         with self.assertRaises(ValueError):
             config.save_language("de", self.db_path)
@@ -316,7 +341,8 @@ class DashboardLanguageTests(PhotoTestCase, HealthDbCase):
 
     def test_redirect_stays_inside_dashboard(self):
         self.start()
-        for next_path in ("//evil.example/", "http://evil.example/", "/\\evil.example", "", "photos"):
+        for next_path in ("//evil.example/", "http://evil.example/", "/\\evil.example", "", "photos",
+                          "/фото", "/x\ty"):
             with self.subTest(next_path=next_path):
                 status, headers, _ = self.switch("ru", next_path)
                 self.assertEqual(status, 303)
@@ -331,6 +357,20 @@ class DashboardLanguageTests(PhotoTestCase, HealthDbCase):
         self.assertEqual(status, 500)
         self.assertIn("The language was not saved", body)
         self.assertEqual(config_file.read_text(encoding="utf-8"), "{broken")
+
+    def test_mcp_error_texts_stay_russian(self):
+        # Ошибки чтения базы попадают и в ответы MCP-инструментов: там они остаются прежними (по-русски),
+        # а панель показывает их на языке интерфейса.
+        missing = self.tmp / "missing" / "fitness.db"
+        status = health_status.sync_status(missing)
+        self.assertIn("База ещё не создана", status["database"]["error"])
+        with self.assertRaises(Exception) as caught:
+            health_status.daily_activity(missing, days_ago(3), days_ago(0))
+        self.assertIn("База ещё не создана", str(caught.exception))
+        server = self.start()
+        server.db_path = missing
+        html = self.get_html("/")
+        self.assertIn("The database has not been created yet", html)
 
     def test_sync_status_page_both_languages(self):
         status = health_status.sync_status(self.db_path)

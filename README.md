@@ -114,7 +114,7 @@ python dashboard.py            # then open http://127.0.0.1:8765/
 python dashboard.py --port 8800
 ```
 
-**Interface language.** The dashboard and the tray menu start in English. The `EN | RU` switch in the dashboard
+**Interface language.** On a new installation the dashboard and the tray menu start in English; an existing installation whose `data/launcher.json` predates this setting stays in Russian. The `EN | RU` switch in the dashboard
 header changes the language immediately, without a restart. The choice is stored as `"language": "en"` or `"ru"`
 in `data/launcher.json` (never in the fitness database) and is kept after page reloads and restarts. Only the
 interface is translated: MCP tool names, database fields and your saved records stay as they are, and error texts

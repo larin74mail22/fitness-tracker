@@ -89,14 +89,24 @@ def load(db_path=None, *, write_defaults=True):
     return settings
 
 
+# Установка, где launcher.json создан версией до перевода интерфейса (в файле нет ключа language), работала
+# по-русски — её язык не меняется. Новая установка получает "language": "en" вместе с остальными настройками.
+EXISTING_INSTALL_LANGUAGE = "ru"
+
+
 def read_language(db_path=None):
-    """Язык интерфейса из data\launcher.json. Нет файла, ключа или файл повреждён — язык по умолчанию (en).
-    Ничего не создаёт и не меняет."""
+    """Язык интерфейса из data\launcher.json. Ничего не создаёт и не меняет.
+
+    Нет файла (новая установка) или файл повреждён — английский; файл старой версии без ключа language — русский."""
     try:
         stored = json.loads(paths(db_path)["config"].read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         return i18n.DEFAULT_LANGUAGE
-    return i18n.normalize(stored.get("language")) if isinstance(stored, dict) else i18n.DEFAULT_LANGUAGE
+    if not isinstance(stored, dict):
+        return i18n.DEFAULT_LANGUAGE
+    if "language" not in stored:
+        return EXISTING_INSTALL_LANGUAGE
+    return i18n.normalize(stored["language"])
 
 
 def save_language(lang, db_path=None):
